@@ -25,3 +25,6 @@ replay_pid*
 
 # carpeta de complilacion
 out/
+
+# Datos locales de la aplicación
+datos/
