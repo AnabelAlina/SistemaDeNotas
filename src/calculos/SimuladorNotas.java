@@ -2,6 +2,7 @@ package calculos;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import evaluaciones.Evaluacion;
 import excepciones.NotaInvalidaException;
 import modelo.Curso;
@@ -49,13 +50,18 @@ public class SimuladorNotas {
     // - Si ya alcanzaste la meta, devuelve 0.
     // - Si no queda nada pendiente, devuelve 0 (usa hayEvaluacionesPendientes() para distinguirlo).
     public double notaNecesaria(Curso curso, double meta) {
+        // Notas que cuentan (ya con la regla del sustitutorio); el sustitutorio nunca es "pendiente"
+        LinkedHashMap<Evaluacion, Double> efectivas = NotasEfectivas.calcular(curso.getEvaluaciones());
         double acumulado = 0;
         double pesoRestante = 0;
         double pesoTotal = 0;
         for (Evaluacion e : curso.getEvaluaciones()) {
+            if (NotasEfectivas.esOpcional(e)) {
+                continue;
+            }
             pesoTotal += e.getPeso();
-            if (e.isRendida()) {
-                acumulado += e.getNota() * e.getPeso();
+            if (efectivas.containsKey(e)) {
+                acumulado += efectivas.get(e) * e.getPeso();
             } else {
                 pesoRestante += e.getPeso();
             }
@@ -79,10 +85,10 @@ public class SimuladorNotas {
         return notaNecesaria(curso, Curso.NOTA_MINIMA_APROBATORIA) <= MAXIMO;
     }
 
-    // La primera evaluacion sin rendir, segun el orden de la lista
+    // La primera evaluacion sin rendir, segun el orden de la lista (ignora el sustitutorio, que es opcional)
     private Evaluacion buscarProximaPendiente(Curso curso) {
         for (Evaluacion e : curso.getEvaluaciones()) {
-            if (!e.isRendida()) {
+            if (!e.isRendida() && !NotasEfectivas.esOpcional(e)) {
                 return e;
             }
         }

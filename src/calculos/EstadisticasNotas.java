@@ -3,6 +3,7 @@ package calculos;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import evaluaciones.Evaluacion;
 
 // Estudiante 2 - Ayelen Choquecota - Estadisticas de las notas: moda y frecuencias (HashMap), mediana y
@@ -29,12 +30,11 @@ public class EstadisticasNotas {
     public void calcularFrecuencias(ArrayList<Evaluacion> evaluaciones) {
         frecuencias = new HashMap<>();
         notasEnOrden = new ArrayList<>();
-        for (Evaluacion e : evaluaciones) {
-            if (e.isRendida()) {
-                double nota = e.getNota();
-                notasEnOrden.add(nota);
-                frecuencias.put(nota, frecuencias.getOrDefault(nota, 0) + 1);
-            }
+        // Notas que cuentan (ya con la regla del sustitutorio aplicada)
+        LinkedHashMap<Evaluacion, Double> efectivas = NotasEfectivas.calcular(evaluaciones);
+        for (double nota : efectivas.values()) {
+            notasEnOrden.add(nota);
+            frecuencias.put(nota, frecuencias.getOrDefault(nota, 0) + 1);
         }
         notasOrdenadas = new double[notasEnOrden.size()];
         for (int i = 0; i < notasEnOrden.size(); i++) {
