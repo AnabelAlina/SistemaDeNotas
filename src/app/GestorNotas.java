@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+
 import evaluaciones.Evaluacion;
+import evaluaciones.TrabajoContinua;
 import excepciones.NotaInvalidaException;
 import modelo.Curso;
 import modelo.Estudiante;
@@ -15,15 +17,13 @@ import persistencia.Repositorio;
  * y delega el guardado/carga en un Repositorio.
  *
  * IMPORTANTE: solo conoce la INTERFAZ Repositorio, no RepositorioArchivo.
- * Así se puede cambiar a base de datos sin tocar esta clase.
  */
 public class GestorNotas {
 
-    // Clave = código del estudiante. Se usa LinkedHashMap (hijo de HashMap)
-    // para que al guardar los estudiantes salgan en el orden en que se registraron.
+    // Clave = código (CUI) del estudiante. LinkedHashMap conserva el orden de registro.
     private HashMap<String, Estudiante> estudiantes;
-    private Estudiante actual;          // estudiante con el que se está trabajando
-    private Repositorio repositorio;    // dependencia de la interfaz
+    private Estudiante actual;
+    private Repositorio repositorio;
 
     public GestorNotas(Repositorio repositorio) {
         if (repositorio == null) {
@@ -34,23 +34,42 @@ public class GestorNotas {
         this.actual = null;
     }
 
-    // Devuelve true si se registró, false si el código ya existía
+    // Devuelve true si se registró, false si el CUI o el DNI ya existían
     public boolean registrarEstudiante(Estudiante estudiante) {
         if (estudiante == null) {
             throw new IllegalArgumentException("El estudiante no puede ser nulo.");
         }
-        // 1. Evita duplicados: el código es la clave única
+        // 1. Evita duplicados por CUI (código)
         if (estudiantes.containsKey(estudiante.getCodigo())) {
-            System.out.println("Ya existe un estudiante con el código " + estudiante.getCodigo() + ".");
+            System.out.println("Ya existe un estudiante con el CUI/código " + estudiante.getCodigo() + ".");
             return false;
         }
-        // 2. Lo guardamos en el mapa y lo dejamos como estudiante actual
+        // 2. Evita duplicados por DNI
+        if (existeDni(estudiante.getDni())) {
+            System.out.println("Ya existe un estudiante con el DNI " + estudiante.getDni() + ".");
+            return false;
+        }
+        // 3. Lo guardamos en el mapa y lo dejamos como estudiante actual
         estudiantes.put(estudiante.getCodigo(), estudiante);
         actual = estudiante;
         return true;
     }
 
-    // Devuelve el estudiante o null si no existe (el menú debe revisar el null)
+    // Verifica si ya hay un estudiante registrado con ese DNI
+    public boolean existeDni(String dni) {
+        if (dni == null) {
+            return false;
+        }
+        String limpio = dni.trim();
+        for (Estudiante e : estudiantes.values()) {
+            if (e.getDni().equals(limpio)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Devuelve el estudiante por CUI/código o null si no existe
     public Estudiante buscarEstudiante(String codigo) {
         if (codigo == null) {
             return null;
@@ -58,20 +77,33 @@ public class GestorNotas {
         return estudiantes.get(codigo.trim());
     }
 
-    // Registra la nota de una evaluación. Devuelve true si se pudo.
-    // Atrapa NotaInvalidaException para mostrar el mensaje sin que la app se caiga.
+    // Registra la nota de una evaluación (ej. Examen o ExamenSustitutorio).
     public boolean registrarNota(Curso curso, Evaluacion evaluacion, double nota) {
         if (curso == null || evaluacion == null) {
             System.out.println("Debes elegir un curso y una evaluación.");
             return false;
         }
-        // Comprobamos que la evaluación realmente pertenece a ese curso
         if (!curso.getEvaluaciones().contains(evaluacion)) {
             System.out.println("Esa evaluación no pertenece al curso " + curso.getCodigo() + ".");
             return false;
         }
         try {
-            evaluacion.setNota(nota); // valida 0..20 y marca como rendida
+            evaluacion.setNota(nota);
+            return true;
+        } catch (NotaInvalidaException | UnsupportedOperationException e) {
+            System.out.println("No se pudo registrar la nota: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Registra la nota de un trabajo dentro de una Continua
+    public boolean registrarNotaTrabajo(TrabajoContinua trabajo, double nota) {
+        if (trabajo == null) {
+            System.out.println("Debes elegir un trabajo.");
+            return false;
+        }
+        try {
+            trabajo.setNota(nota);
             return true;
         } catch (NotaInvalidaException e) {
             System.out.println("Nota inválida: " + e.getMessage());
@@ -79,7 +111,6 @@ public class GestorNotas {
         }
     }
 
-    // Escribe todos los estudiantes usando el repositorio. Devuelve true si salió bien.
     public boolean guardarTodo() {
         try {
             repositorio.guardar(new ArrayList<>(estudiantes.values()));
@@ -90,7 +121,6 @@ public class GestorNotas {
         }
     }
 
-    // Llena el mapa con lo guardado. Se llama una vez al iniciar la app.
     public boolean cargarTodo() {
         try {
             ArrayList<Estudiante> cargados = repositorio.cargar();
@@ -98,7 +128,6 @@ public class GestorNotas {
             for (Estudiante e : cargados) {
                 estudiantes.put(e.getCodigo(), e);
             }
-            // Si había datos, dejamos como actual al último cargado
             actual = cargados.isEmpty() ? null : cargados.get(cargados.size() - 1);
             return true;
         } catch (IOException e) {
@@ -107,13 +136,11 @@ public class GestorNotas {
         }
     }
 
-    // Lista de estudiantes registrados (copia, para no modificar el mapa desde fuera)
     public ArrayList<Estudiante> getEstudiantes() {
         return new ArrayList<>(estudiantes.values());
     }
 
     public Estudiante getActual() { return actual; }
 
-    // Cambia el estudiante con el que trabaja el menú
     public void setActual(Estudiante estudiante) { this.actual = estudiante; }
 }
