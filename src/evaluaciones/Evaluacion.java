@@ -52,10 +52,10 @@ public abstract class Evaluacion {
     // Estudiante 2 - Ayelen Choquecota - Cuanto aporta esta evaluacion al promedio final: nota x peso / 100.
     // Si todavia no se rindio, aporta 0.
     public double getNotaPonderada() {
-        if (!rendida) {
+        if (!isRendida()) {
             return 0;
         }
-        return nota * peso / 100.0;
+        return getNota() * peso / 100.0;
     }
 
     // Estudiante 2 - Ayelen Choquecota - Metodo abstracto: cada subclase lo sobrescribe (polimorfismo).
@@ -63,7 +63,7 @@ public abstract class Evaluacion {
 
     @Override
     public String toString() {
-        String estado = rendida ? "nota " + nota : "pendiente";
+        String estado = isRendida() ? "nota " + getNota() : "pendiente";
         return getTipo() + " - " + nombre + " (" + peso + "%): " + estado;
     }
 }
