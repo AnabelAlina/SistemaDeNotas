@@ -11,11 +11,15 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 
+import evaluaciones.Continua;
 import evaluaciones.Evaluacion;
+import evaluaciones.Examen;
 import evaluaciones.ExamenFinal;
+import evaluaciones.ExamenSustitutorio;
 import evaluaciones.Parcial;
 import evaluaciones.Practica;
 import evaluaciones.Trabajo;
+import evaluaciones.TrabajoContinua;
 import excepciones.NotaInvalidaException;
 import excepciones.PesoInvalidoException;
 import modelo.Ciclo;
@@ -26,19 +30,17 @@ import modelo.Estudiante;
  * Guarda y carga los datos en un archivo de texto, una línea por registro,
  * con los campos separados por ';'.
  *
- * Formato (cada línea pertenece al último registro "padre" leído):
+ * Formato jerárquico:
  *   ESTUDIANTE;nombre;apellido;dni;correo;codigo;carrera
  *   CICLO;nombre;anio
  *   CURSO;codigo;nombre;creditos;metaPromedio
  *   EVALUACION;tipo;nombre;peso;fecha;rendida;nota;extra
- *
- * "extra" depende del tipo: numero (Practica), tieneRecuperacion (Parcial),
- * sustitutorio (Examen Final) o esGrupal (Trabajo).
+ *   TRABAJO;nombre;peso;esGrupal;rendido;nota   (pertenece a la última Continua leída)
  */
 public class RepositorioArchivo implements Repositorio {
 
     private static final String SEP = ";";
-    private static final String SIN_FECHA = "-"; // marca para fecha nula
+    private static final String SIN_FECHA = "-";
 
     private String rutaArchivo;
 
@@ -54,7 +56,6 @@ public class RepositorioArchivo implements Repositorio {
     @Override
     public void guardar(ArrayList<Estudiante> estudiantes) throws IOException {
         Path ruta = Paths.get(rutaArchivo);
-        // Si la carpeta (ej. "datos") no existe, la creamos
         if (ruta.getParent() != null) {
             Files.createDirectories(ruta.getParent());
         }
@@ -77,10 +78,15 @@ public class RepositorioArchivo implements Repositorio {
         }
     }
 
-    // Escribe una evaluación con su dato extra según la subclase
     private void escribirEvaluacion(BufferedWriter out, Evaluacion ev) throws IOException {
         String extra;
-        if (ev instanceof Practica) {
+        if (ev instanceof Examen) {
+            extra = String.valueOf(((Examen) ev).getNumero());
+        } else if (ev instanceof Continua) {
+            extra = String.valueOf(((Continua) ev).getNumero());
+        } else if (ev instanceof ExamenSustitutorio) {
+            extra = "";
+        } else if (ev instanceof Practica) {
             extra = String.valueOf(((Practica) ev).getNumero());
         } else if (ev instanceof Parcial) {
             extra = String.valueOf(((Parcial) ev).isTieneRecuperacion());
@@ -91,13 +97,27 @@ public class RepositorioArchivo implements Repositorio {
         } else {
             extra = "";
         }
+
         String fecha = ev.getFecha() == null ? SIN_FECHA : ev.getFecha().toString();
+        // En Continua la nota se calcula con sus trabajos, guardamos 0 en la cabecera
+        double notaCabecera = (ev instanceof Continua) ? 0.0 : ev.getNota();
+
         escribir(out, "EVALUACION", ev.getTipo(), ev.getNombre(),
                 String.valueOf(ev.getPeso()), fecha,
-                String.valueOf(ev.isRendida()), String.valueOf(ev.getNota()), extra);
+                String.valueOf(ev.isRendida()), String.valueOf(notaCabecera), extra);
+
+        // Si es Continua, guardamos justo debajo todos sus TrabajoContinua
+        if (ev instanceof Continua) {
+            for (TrabajoContinua t : ((Continua) ev).getTrabajos()) {
+                escribir(out, "TRABAJO", t.getNombre(),
+                        String.valueOf(t.getPeso()),
+                        String.valueOf(t.isEsGrupal()),
+                        String.valueOf(t.isRendido()),
+                        String.valueOf(t.getNota()));
+            }
+        }
     }
 
-    // Une los campos con ';' y escribe la línea
     private void escribir(BufferedWriter out, String... campos) throws IOException {
         StringBuilder linea = new StringBuilder();
         for (int i = 0; i < campos.length; i++) {
@@ -110,7 +130,6 @@ public class RepositorioArchivo implements Repositorio {
         out.newLine();
     }
 
-    // Quita ';' y saltos de línea del texto para no romper el formato
     private String limpiar(String texto) {
         return texto.replace(SEP, ",").replace("\n", " ").replace("\r", " ");
     }
@@ -122,15 +141,14 @@ public class RepositorioArchivo implements Repositorio {
         ArrayList<Estudiante> resultado = new ArrayList<>();
         Path ruta = Paths.get(rutaArchivo);
 
-        // Primera vez que se abre la app: no hay archivo, devolvemos lista vacía
         if (!Files.exists(ruta)) {
             return resultado;
         }
 
-        // "Padres" actuales: cada línea hija se agrega al último padre leído
         Estudiante estudiante = null;
         Ciclo ciclo = null;
         Curso curso = null;
+        Continua ultimaContinua = null;
 
         try (BufferedReader in = Files.newBufferedReader(ruta, StandardCharsets.UTF_8)) {
             String linea;
@@ -138,22 +156,23 @@ public class RepositorioArchivo implements Repositorio {
             while ((linea = in.readLine()) != null) {
                 numLinea++;
                 if (linea.trim().isEmpty()) {
-                    continue; // ignora líneas en blanco
+                    continue;
                 }
-                String[] p = linea.split(SEP, -1); // -1 conserva campos vacíos al final
+                String[] p = linea.split(SEP, -1);
                 try {
                     switch (p[0]) {
                         case "ESTUDIANTE":
-                            // Si falla, los hijos siguientes se saltan (padre = null)
                             estudiante = null;
                             ciclo = null;
                             curso = null;
+                            ultimaContinua = null;
                             estudiante = new Estudiante(p[1], p[2], p[3], p[4], p[5], p[6]);
                             resultado.add(estudiante);
                             break;
                         case "CICLO":
                             ciclo = null;
                             curso = null;
+                            ultimaContinua = null;
                             if (estudiante != null) {
                                 ciclo = new Ciclo(p[1], Integer.parseInt(p[2]));
                                 estudiante.agregarCiclo(ciclo);
@@ -161,6 +180,7 @@ public class RepositorioArchivo implements Repositorio {
                             break;
                         case "CURSO":
                             curso = null;
+                            ultimaContinua = null;
                             if (ciclo != null) {
                                 curso = new Curso(p[1], p[2], Integer.parseInt(p[3]),
                                         Double.parseDouble(p[4]));
@@ -168,8 +188,24 @@ public class RepositorioArchivo implements Repositorio {
                             }
                             break;
                         case "EVALUACION":
+                            ultimaContinua = null;
                             if (curso != null) {
-                                curso.agregarEvaluacion(leerEvaluacion(p));
+                                Evaluacion ev = leerEvaluacion(p);
+                                if (ev instanceof ExamenSustitutorio) {
+                                    // Peso 0: se añade directo si Curso aún no permite peso 0
+                                    curso.getEvaluaciones().add(ev);
+                                } else {
+                                    curso.agregarEvaluacion(ev);
+                                }
+                                if (ev instanceof Continua) {
+                                    ultimaContinua = (Continua) ev;
+                                }
+                            }
+                            break;
+                        case "TRABAJO":
+                            if (ultimaContinua != null) {
+                                TrabajoContinua trabajo = leerTrabajo(p);
+                                ultimaContinua.agregarTrabajo(trabajo);
                             }
                             break;
                         default:
@@ -186,9 +222,7 @@ public class RepositorioArchivo implements Repositorio {
         return resultado;
     }
 
-    // Reconstruye una Evaluacion a partir de los campos de la línea
-    private Evaluacion leerEvaluacion(String[] p)
-            throws NotaInvalidaException {
+    private Evaluacion leerEvaluacion(String[] p) throws NotaInvalidaException {
         String tipo = p[1];
         String nombre = p[2];
         double peso = Double.parseDouble(p[3]);
@@ -199,6 +233,15 @@ public class RepositorioArchivo implements Repositorio {
 
         Evaluacion ev;
         switch (tipo) {
+            case "Examen":
+                ev = new Examen(Integer.parseInt(extra), peso);
+                break;
+            case "Continua":
+                ev = new Continua(Integer.parseInt(extra), peso);
+                break;
+            case "Sustitutorio":
+                ev = new ExamenSustitutorio();
+                break;
             case "Practica":
                 ev = new Practica(nombre, peso, fecha, Integer.parseInt(extra));
                 break;
@@ -215,10 +258,24 @@ public class RepositorioArchivo implements Repositorio {
                 throw new IllegalArgumentException("Tipo de evaluación desconocido: " + tipo);
         }
 
-        // Solo si estaba rendida se llama a setNota(), así queda marcada como rendida
-        if (rendida) {
+        // En Continua la nota sale de sus líneas TRABAJO; en las demás se asigna si estaba rendida
+        if (rendida && !(ev instanceof Continua)) {
             ev.setNota(nota);
         }
         return ev;
+    }
+
+    private TrabajoContinua leerTrabajo(String[] p) throws NotaInvalidaException {
+        String nombre = p[1];
+        double peso = Double.parseDouble(p[2]);
+        boolean esGrupal = Boolean.parseBoolean(p[3]);
+        boolean rendido = Boolean.parseBoolean(p[4]);
+        double nota = Double.parseDouble(p[5]);
+
+        TrabajoContinua trabajo = new TrabajoContinua(nombre, peso, esGrupal);
+        if (rendido) {
+            trabajo.setNota(nota);
+        }
+        return trabajo;
     }
 }
