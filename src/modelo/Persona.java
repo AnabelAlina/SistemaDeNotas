@@ -23,10 +23,10 @@ public abstract class Persona {
         this.apellido = validarTexto(apellido, "apellido");
     }
     public void setDni(String dni) {
-        this.dni = validarTexto(dni, "dni");
+        this.dni = validarDni(dni);
     }
     public void setCorreo(String correo) {
-        this.correo = validarTexto(correo, "correo");
+        this.correo = validarCorreo(correo);
     }
     public String getNombreCompleto() {
         return nombre + " " + apellido;
@@ -39,5 +39,22 @@ public abstract class Persona {
             throw new IllegalArgumentException("El campo '" + campo + "' no puede estar vacío.");
         }
         return valor.trim();
+    }
+    // DNI peruano: exactamente 8 dígitos. Es public static para que los menús
+    // puedan validar el dato ANTES de crear el objeto.
+    public static String validarDni(String dni) {
+        String limpio = validarTexto(dni, "dni");
+        if (!limpio.matches("\\d{8}")) {
+            throw new IllegalArgumentException("El DNI debe tener exactamente 8 dígitos numéricos.");
+        }
+        return limpio;
+    }
+    // Formato general de correo: algo@dominio.ext (sin espacios)
+    public static String validarCorreo(String correo) {
+        String limpio = validarTexto(correo, "correo");
+        if (!limpio.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+            throw new IllegalArgumentException("El correo no tiene un formato válido (ej. usuario@unsa.edu.pe).");
+        }
+        return limpio;
     }
 }

@@ -1,11 +1,12 @@
 package modelo;
 
-import java.util.ArrayList;
 import calculos.EstrategiaPromedio;
 import calculos.PromedioPonderado;
 import calculos.SimuladorNotas;
 import evaluaciones.Evaluacion;
+import evaluaciones.ExamenSustitutorio;
 import excepciones.PesoInvalidoException;
+import java.util.ArrayList;
 
 public class Curso implements Calculable {
     // Constante acordada por el grupo (cámbiala si deciden otra)
@@ -57,8 +58,13 @@ public class Curso implements Calculable {
         if (evaluacion == null) {
             throw new IllegalArgumentException("La evaluación no puede ser nula.");
         }
-        if (evaluacion.getPeso() <= 0) {
+        boolean esSustitutorio = evaluacion instanceof ExamenSustitutorio;
+        // Solo el sustitutorio puede tener peso 0 (no tiene peso propio)
+        if (evaluacion.getPeso() <= 0 && !esSustitutorio) {
             throw new PesoInvalidoException("El peso debe ser mayor que 0.");
+        }
+        if (esSustitutorio && getSustitutorio() != null) {
+            throw new PesoInvalidoException("Este curso ya tiene un examen sustitutorio.");
         }
         if (getPesoTotal() + evaluacion.getPeso() > PESO_TOTAL + TOLERANCIA) {
             throw new PesoInvalidoException("Los pesos superan el 100%. Peso actual: "
@@ -66,6 +72,26 @@ public class Curso implements Calculable {
         }
         evaluaciones.add(evaluacion);
     }
+    // Devuelve el sustitutorio del curso o null si todavía no se creó
+    public ExamenSustitutorio getSustitutorio() {
+        for (Evaluacion e : evaluaciones) {
+            if (e instanceof ExamenSustitutorio) {
+                return (ExamenSustitutorio) e;
+            }
+        }
+        return null;
+    }
+
+    // Crea el sustitutorio (peso 0) si no existe y lo devuelve
+    public ExamenSustitutorio obtenerOCrearSustitutorio() {
+        ExamenSustitutorio sust = getSustitutorio();
+        if (sust == null) {
+            sust = new ExamenSustitutorio();
+            evaluaciones.add(sust); // peso 0: no altera el total de 100%
+        }
+        return sust;
+    }
+
     // Suma de los pesos de todas las evaluaciones registradas
     public double getPesoTotal() {
         double total = 0;

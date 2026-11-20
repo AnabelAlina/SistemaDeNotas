@@ -1,5 +1,7 @@
 package modelo;
+import excepciones.PesoInvalidoException;
 import java.util.ArrayList;
+import plan.PlanEstudios;
 public class Ciclo implements Calculable {
     private String nombre; // ejemplo: "2026-A"
     private int anio;
@@ -31,6 +33,41 @@ public class Ciclo implements Calculable {
         }
         cursos.add(curso);
     }
+
+    // Carga los 7 cursos del semestre UNSA con sus créditos y evaluaciones.
+    // Salta los que ya existan en el ciclo. Devuelve cuántos agregó.
+    public int agregarCursosPredeterminados(double meta) throws PesoInvalidoException {
+        int agregados = 0;
+        for (PlanEstudios.CursoPlan plan : PlanEstudios.getCursosPrimerAnioSegundoSemestre()) {
+            if (buscarCurso(plan.getCodigo()) == null) {
+                agregarCurso(PlanEstudios.crearCurso(plan, meta));
+                agregados++;
+            }
+        }
+        return agregados;
+    }
+
+    // Curso manual (repitentes u otros años): se rechaza si los 6 % no suman 100
+    public Curso agregarCursoManual(String codigo, String nombre, int creditos, double meta,
+                                    double[] pesosExamen, double[] pesosContinua) throws PesoInvalidoException {
+        Curso curso = PlanEstudios.crearCurso(codigo, nombre, creditos, meta, pesosExamen, pesosContinua);
+        agregarCurso(curso);
+        return curso;
+    }
+
+    // Devuelve el curso con ese código o null si no existe
+    public Curso buscarCurso(String codigo) {
+        if (codigo == null) {
+            return null;
+        }
+        for (Curso c : cursos) {
+            if (c.getCodigo().equalsIgnoreCase(codigo.trim())) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     // Promedio ponderado por créditos
     @Override
     public double calcularPromedio() {
