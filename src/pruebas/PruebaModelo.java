@@ -1,12 +1,16 @@
 package pruebas;
 
+import app.GestorNotas;
+import evaluaciones.Continua;
 import evaluaciones.Examen;
 import evaluaciones.ExamenSustitutorio;
+import evaluaciones.TrabajoContinua;
 import excepciones.PesoInvalidoException;
 import modelo.Ciclo;
 import modelo.Curso;
 import modelo.Estudiante;
 import modelo.Persona;
+import persistencia.RepositorioArchivo;
 
 // Estudiante 1 - Anabel Quispe - Pruebas del modelo: validaciones, plan de estudios en Ciclo,
 // curso manual y sustitutorio con peso 0. Ejecutar y revisar que todo diga OK.
@@ -108,6 +112,60 @@ public class PruebaModelo {
             pesoCero = true;
         }
         verificar("un Examen con peso 0 sigue rechazado", pesoCero);
+
+        // --- Borrar y corregir (PR 1) ---
+        verificar("quitarCurso de uno que existe devuelve true", ciclo.quitarCurso("9999999"));
+        verificar("el curso quitado ya no está en el ciclo", ciclo.buscarCurso("9999999") == null);
+        verificar("quitarCurso de uno que no existe devuelve false", !ciclo.quitarCurso("0000000"));
+
+        verificar("quitarCiclo de uno que no existe devuelve false", !est.quitarCiclo("1999-Z"));
+        est.agregarCiclo(new Ciclo("2027-A", 2027));
+        verificar("quitarCiclo de uno que existe devuelve true", est.quitarCiclo("2027-A"));
+        verificar("el ciclo quitado ya no está", est.buscarCiclo("2027-A") == null);
+
+        Curso conMeta = ciclo.buscarCurso("2501208");
+        conMeta.setMetaPromedio(15);
+        verificar("setMetaPromedio(15) cambia la meta", 15, conMeta.getMetaPromedio());
+        boolean metaMala = false;
+        try {
+            conMeta.setMetaPromedio(25);
+        } catch (IllegalArgumentException e) {
+            metaMala = true;
+        }
+        verificar("setMetaPromedio(25) lanza IllegalArgumentException", metaMala);
+        verificar("la meta no cambió tras el error", 15, conMeta.getMetaPromedio());
+
+        Continua continua = new Continua(1, 20);
+        TrabajoContinua trabajo = new TrabajoContinua("Informe", 40, false);
+        continua.agregarTrabajo(trabajo);
+        verificar("quitarTrabajo de uno que existe devuelve true", continua.quitarTrabajo(trabajo));
+        verificar("el peso interno vuelve a 0", 0, continua.getPesoInterno());
+        verificar("quitarTrabajo de uno que no está devuelve false", !continua.quitarTrabajo(trabajo));
+
+        // --- GestorNotas sin consola (PR 1) ---
+        GestorNotas gestor = new GestorNotas(new RepositorioArchivo("datos/prueba_modelo.txt"));
+        Estudiante g1 = crearEstudiante("71234567", "aquispe@unsa.edu.pe", "20261234");
+        gestor.agregarEstudiante(g1);
+        verificar("agregarEstudiante registra al estudiante", gestor.getEstudiantes().size() == 1);
+        boolean cuiRep = false;
+        try {
+            gestor.agregarEstudiante(crearEstudiante("70000001", "otra@unsa.edu.pe", "20261234"));
+        } catch (IllegalArgumentException e) {
+            cuiRep = e.getMessage().contains("20261234");
+        }
+        verificar("CUI repetido lanza IllegalArgumentException con el CUI", cuiRep);
+        boolean dniRep = false;
+        try {
+            gestor.agregarEstudiante(crearEstudiante("71234567", "otra@unsa.edu.pe", "20269999"));
+        } catch (IllegalArgumentException e) {
+            dniRep = e.getMessage().contains("71234567");
+        }
+        verificar("DNI repetido lanza IllegalArgumentException con el DNI", dniRep);
+        verificar("quitarEstudiante de uno que no existe devuelve false", !gestor.quitarEstudiante("11111111"));
+        verificar("quitarEstudiante de uno que existe devuelve true", gestor.quitarEstudiante("20261234"));
+        verificar("ya no quedan estudiantes y no hay actual", gestor.getEstudiantes().isEmpty() && gestor.getActual() == null);
+        verificar("el método viejo registrarEstudiante sigue devolviendo true", gestor.registrarEstudiante(g1));
+        verificar("el método viejo devuelve false si está repetido", !gestor.registrarEstudiante(g1));
 
         System.out.println(fallos == 0 ? "\nTodas las pruebas pasaron." : "\nHubo " + fallos + " fallo(s).");
     }

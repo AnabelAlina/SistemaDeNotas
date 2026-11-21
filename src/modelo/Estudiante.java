@@ -50,6 +50,15 @@ public class Estudiante extends Persona implements Calculable {
         ciclos.add(ciclo);
     }
 
+    // Quita el ciclo con ese nombre. Devuelve true si lo quitó, false si no existía
+    public boolean quitarCiclo(String nombre) {
+        Ciclo ciclo = buscarCiclo(nombre);
+        if (ciclo == null) {
+            return false;
+        }
+        return ciclos.remove(ciclo);
+    }
+
     // Devuelve el ciclo con ese nombre o null si no existe
     public Ciclo buscarCiclo(String nombre) {
         if (nombre == null) {

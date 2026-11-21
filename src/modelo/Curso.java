@@ -46,6 +46,15 @@ public class Curso implements Calculable {
     public int getCreditos() { return creditos; }
     public double getMetaPromedio() { return metaPromedio; }
     public ArrayList<Evaluacion> getEvaluaciones() { return evaluaciones; }
+
+    // Cambia la meta de promedio (0 a 20)
+    public void setMetaPromedio(double metaPromedio) {
+        if (metaPromedio < 0 || metaPromedio > 20) {
+            throw new IllegalArgumentException("La meta debe estar entre 0 y 20.");
+        }
+        this.metaPromedio = metaPromedio;
+    }
+
     // Permite cambiar entre promedio simple y ponderado
     public void setEstrategia(EstrategiaPromedio estrategia) {
         if (estrategia == null) {
