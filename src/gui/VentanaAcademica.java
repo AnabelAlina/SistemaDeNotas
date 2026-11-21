@@ -546,9 +546,4 @@ public class VentanaAcademica extends JFrame {
         }
     }
 
-    // ---------- main TEMPORAL para probar la ventana sola (Karol lo quita en el PR 6) ----------
-    public static void main(String[] args) {
-        GestorNotas gestor = new GestorNotas(new persistencia.RepositorioArchivo("datos/notas.txt"));
-        new VentanaAcademica(gestor);
-    }
 }

@@ -7,18 +7,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 
 import evaluaciones.Continua;
 import evaluaciones.Evaluacion;
 import evaluaciones.Examen;
-import evaluaciones.ExamenFinal;
 import evaluaciones.ExamenSustitutorio;
-import evaluaciones.Parcial;
-import evaluaciones.Practica;
-import evaluaciones.Trabajo;
 import evaluaciones.TrabajoContinua;
 import excepciones.NotaInvalidaException;
 import excepciones.PesoInvalidoException;
@@ -84,29 +79,17 @@ public class RepositorioArchivo implements Repositorio {
             extra = String.valueOf(((Examen) ev).getNumero());
         } else if (ev instanceof Continua) {
             extra = String.valueOf(((Continua) ev).getNumero());
-        } else if (ev instanceof ExamenSustitutorio) {
-            extra = "";
-        } else if (ev instanceof Practica) {
-            extra = String.valueOf(((Practica) ev).getNumero());
-        } else if (ev instanceof Parcial) {
-            extra = String.valueOf(((Parcial) ev).isTieneRecuperacion());
-        } else if (ev instanceof ExamenFinal) {
-            extra = String.valueOf(((ExamenFinal) ev).isSustitutorio());
-        } else if (ev instanceof Trabajo) {
-            extra = String.valueOf(((Trabajo) ev).isEsGrupal());
         } else {
             extra = "";
         }
 
         String fecha = ev.getFecha() == null ? SIN_FECHA : ev.getFecha().toString();
-        // En Continua la nota se calcula con sus trabajos, guardamos 0 en la cabecera
         double notaCabecera = (ev instanceof Continua) ? 0.0 : ev.getNota();
 
         escribir(out, "EVALUACION", ev.getTipo(), ev.getNombre(),
                 String.valueOf(ev.getPeso()), fecha,
                 String.valueOf(ev.isRendida()), String.valueOf(notaCabecera), extra);
 
-        // Si es Continua, guardamos justo debajo todos sus TrabajoContinua
         if (ev instanceof Continua) {
             for (TrabajoContinua t : ((Continua) ev).getTrabajos()) {
                 escribir(out, "TRABAJO", t.getNombre(),
@@ -191,12 +174,7 @@ public class RepositorioArchivo implements Repositorio {
                             ultimaContinua = null;
                             if (curso != null) {
                                 Evaluacion ev = leerEvaluacion(p);
-                                if (ev instanceof ExamenSustitutorio) {
-                                    // Peso 0: se añade directo si Curso aún no permite peso 0
-                                    curso.getEvaluaciones().add(ev);
-                                } else {
-                                    curso.agregarEvaluacion(ev);
-                                }
+                                curso.agregarEvaluacion(ev);
                                 if (ev instanceof Continua) {
                                     ultimaContinua = (Continua) ev;
                                 }
@@ -224,9 +202,7 @@ public class RepositorioArchivo implements Repositorio {
 
     private Evaluacion leerEvaluacion(String[] p) throws NotaInvalidaException {
         String tipo = p[1];
-        String nombre = p[2];
         double peso = Double.parseDouble(p[3]);
-        LocalDate fecha = p[4].equals(SIN_FECHA) ? null : LocalDate.parse(p[4]);
         boolean rendida = Boolean.parseBoolean(p[5]);
         double nota = Double.parseDouble(p[6]);
         String extra = p[7];
@@ -242,23 +218,10 @@ public class RepositorioArchivo implements Repositorio {
             case "Sustitutorio":
                 ev = new ExamenSustitutorio();
                 break;
-            case "Practica":
-                ev = new Practica(nombre, peso, fecha, Integer.parseInt(extra));
-                break;
-            case "Parcial":
-                ev = new Parcial(nombre, peso, fecha, Boolean.parseBoolean(extra));
-                break;
-            case "Examen Final":
-                ev = new ExamenFinal(nombre, peso, fecha, Boolean.parseBoolean(extra));
-                break;
-            case "Trabajo":
-                ev = new Trabajo(nombre, peso, fecha, Boolean.parseBoolean(extra));
-                break;
             default:
                 throw new IllegalArgumentException("Tipo de evaluación desconocido: " + tipo);
         }
 
-        // En Continua la nota sale de sus líneas TRABAJO; en las demás se asigna si estaba rendida
         if (rendida && !(ev instanceof Continua)) {
             ev.setNota(nota);
         }
