@@ -1,13 +1,18 @@
 package pruebas;
 
-import java.time.LocalDate;
 import calculos.EstadisticasNotas;
+import calculos.EstadoCurso;
+import calculos.EvaluadorCurso;
 import calculos.PromedioSimple;
 import calculos.SimuladorNotas;
 import evaluaciones.*;
 import excepciones.NotaInvalidaException;
 import excepciones.PesoInvalidoException;
+import java.time.LocalDate;
+import modelo.Ciclo;
 import modelo.Curso;
+import modelo.Estudiante;
+import plan.PlanEstudios;
 
 // Estudiante 2 - Ayelen Choquecota - Pruebas manuales de evaluaciones, promedios, estadisticas y simulador.
 // Se puede borrar o dejar al final del proyecto.
@@ -169,7 +174,180 @@ public class PruebaCalculos {
             verificar("pesos > 100 lanza PesoInvalidoException", true, true);
         }
 
+        // --- Modelo UNSA: estado, rangos, sustitutorio, simulador, ciclo y quitarTrabajo (Ani) ---
+        pruebasModeloUNSA();
+
         System.out.println();
         System.out.println(fallos == 0 ? "TODO OK" : "HAY " + fallos + " FALLO(S)");
+    }
+
+    // ===================== Pruebas del modelo UNSA (Ani, Estudiante 2) =====================
+
+    // Curso con el orden Continua 1, Examen 1, Continua 2, Examen 2, Continua 3, Examen 3.
+    // Continuas 15 / 15 / 10 y examenes 20 / 20 / 20 (suman 100)
+    private static Curso cursoUNSA(String codigo) throws Exception {
+        return PlanEstudios.crearCurso(codigo, "Curso " + codigo, 4, 14,
+            new double[]{20, 20, 20}, new double[]{15, 15, 10});
+    }
+
+    // Pone nota a una continua con un solo trabajo de 100% (queda completa)
+    private static void notaContinua(Curso curso, int numero, double nota) throws Exception {
+        Continua c = (Continua) curso.getEvaluaciones().get((numero - 1) * 2);
+        TrabajoContinua t = new TrabajoContinua("Trabajo unico", 100, false);
+        c.agregarTrabajo(t);
+        t.setNota(nota);
+    }
+
+    private static void notaExamen(Curso curso, int numero, double nota) throws Exception {
+        curso.getEvaluaciones().get((numero - 1) * 2 + 1).setNota(nota);
+    }
+
+    private static void notaSustitutorio(Curso curso, double nota) throws Exception {
+        curso.obtenerOCrearSustitutorio().setNota(nota);
+    }
+
+    private static void pruebasModeloUNSA() throws Exception {
+        EvaluadorCurso evaluador = new EvaluadorCurso();
+        SimuladorNotas simulador = new SimuladorNotas();
+
+        // --- Estado del curso ---
+        Curso sinNotas = cursoUNSA("U1");
+        verificar("estado: sin notas no se calcula (null)", true, evaluador.estadoDe(sinNotas) == null);
+
+        Curso aprobado = cursoUNSA("U2");
+        notaContinua(aprobado, 1, 16);
+        notaExamen(aprobado, 1, 14);
+        verificar("estado: promedio 15 con pendientes -> APROBADO", EstadoCurso.APROBADO, evaluador.estadoDe(aprobado));
+
+        Curso enRiesgo = cursoUNSA("U3");
+        notaContinua(enRiesgo, 1, 8);
+        notaExamen(enRiesgo, 1, 8);
+        verificar("estado: promedio 8 pero aun posible -> EN_RIESGO", EstadoCurso.EN_RIESGO, evaluador.estadoDe(enRiesgo));
+
+        Curso imposible = cursoUNSA("U4");
+        notaContinua(imposible, 1, 0);
+        notaExamen(imposible, 1, 0);
+        notaContinua(imposible, 2, 0);
+        notaExamen(imposible, 2, 0);
+        verificar("estado: ya imposible llegar a 10.5 -> DESAPROBADO", EstadoCurso.DESAPROBADO, evaluador.estadoDe(imposible));
+
+        Curso terminadoBajo = cursoUNSA("U5");
+        for (int i = 1; i <= 3; i++) {
+            notaContinua(terminadoBajo, i, 5);
+            notaExamen(terminadoBajo, i, 5);
+        }
+        verificar("estado: curso terminado con 5 -> DESAPROBADO", EstadoCurso.DESAPROBADO, evaluador.estadoDe(terminadoBajo));
+
+        Curso terminadoBien = cursoUNSA("U6");
+        for (int i = 1; i <= 3; i++) {
+            notaContinua(terminadoBien, i, 12);
+            notaExamen(terminadoBien, i, 12);
+        }
+        verificar("estado: curso terminado con 12 -> APROBADO", EstadoCurso.APROBADO, evaluador.estadoDe(terminadoBien));
+        verificar("estado: texto para mostrar", "En riesgo", EstadoCurso.EN_RIESGO.getTexto());
+
+        // --- Distribucion por rangos ---
+        Curso rangos = cursoUNSA("R1");
+        notaContinua(rangos, 1, 18);
+        notaExamen(rangos, 1, 8);
+        notaContinua(rangos, 2, 12);
+        notaExamen(rangos, 2, 15);
+        notaContinua(rangos, 3, 10);
+        notaExamen(rangos, 3, 17);
+        java.util.LinkedHashMap<String, Integer> dist = evaluador.distribucionPorRangos(rangos);
+        verificar("rangos: 0 a 10.49 tiene 2 (8 y 10)", 2.0, dist.get("0 a 10.49").intValue());
+        verificar("rangos: 10.5 a 13.99 tiene 1 (12)", 1.0, dist.get("10.5 a 13.99").intValue());
+        verificar("rangos: 14 a 16.99 tiene 1 (15)", 1.0, dist.get("14 a 16.99").intValue());
+        verificar("rangos: 17 a 20 tiene 2 (18 y 17)", 2.0, dist.get("17 a 20").intValue());
+        verificar("rangos: el orden es de menor a mayor", "0 a 10.49", dist.keySet().iterator().next());
+
+        Curso bordes = cursoUNSA("R2");
+        notaContinua(bordes, 1, 10.5);
+        notaExamen(bordes, 1, 14);
+        notaContinua(bordes, 2, 17);
+        java.util.LinkedHashMap<String, Integer> distBordes = evaluador.distribucionPorRangos(bordes);
+        verificar("rangos: 10.5 cae en el segundo", 1.0, distBordes.get("10.5 a 13.99").intValue());
+        verificar("rangos: 14 cae en el tercero", 1.0, distBordes.get("14 a 16.99").intValue());
+        verificar("rangos: 17 cae en el cuarto", 1.0, distBordes.get("17 a 20").intValue());
+        verificar("rangos: sin notas todo en 0", 0.0, evaluador.distribucionPorRangos(sinNotas).get("17 a 20").intValue());
+
+        // --- Nota necesaria en el sustitutorio ---
+        // Continua 1 = 14 (15%) y Examen 1 = 6 (20%): promedio actual 9.4286, el mas bajo es 6 con peso 20
+        Curso sust = cursoUNSA("S1");
+        notaContinua(sust, 1, 14);
+        notaExamen(sust, 1, 6);
+        verificar("sustitutorio: para meta 12 se necesita 10.5", 10.5, simulador.notaNecesariaSustitutorio(sust, 12));
+        verificar("sustitutorio: coincide con simularSustitutorio (da la meta)", 12.0, simulador.simularSustitutorio(sust, 10.5));
+        verificar("sustitutorio: meta 20 es imposible (mayor que 20)", true, simulador.notaNecesariaSustitutorio(sust, 20) > 20);
+        verificar("sustitutorio: meta baja, no hace falta (0)", 0.0, simulador.notaNecesariaSustitutorio(sust, 5));
+        verificar("sustitutorio: simular no crea el sustitutorio", true, sust.getSustitutorio() == null);
+        Curso soloContinua = cursoUNSA("S2");
+        notaContinua(soloContinua, 1, 14);
+        verificar("sustitutorio: sin Examen 1 ni 2 rendido no aplica (NaN)", true,
+            Double.isNaN(simulador.notaNecesariaSustitutorio(soloContinua, 12)));
+        notaSustitutorio(sust, 10);
+        verificar("sustitutorio: si ya se rindio no aplica (NaN)", true,
+            Double.isNaN(simulador.notaNecesariaSustitutorio(sust, 12)));
+
+        // --- simularNota para una evaluacion concreta ---
+        Curso sim = cursoUNSA("M1");
+        notaContinua(sim, 1, 14);
+        notaExamen(sim, 1, 6);
+        Evaluacion examen3 = sim.getEvaluaciones().get(5);
+        double antes = sim.calcularPromedio();
+        verificar("simular Examen 3 = 20: (14x15 + 6x20 + 20x20) / 55", 730.0 / 55, simulador.simularNota(sim, examen3, 20));
+        verificar("simular no cambia las notas guardadas", true, !examen3.isRendida());
+        verificar("simular no cambia el promedio actual", antes, sim.calcularPromedio());
+        verificar("simularNota(curso, nota) sigue simulando la proxima pendiente (Continua 2)", true,
+            Math.abs(simulador.simularNota(sim, 20) - (14 * 15 + 6 * 20 + 20 * 15) / 50.0) < 0.0001);
+        try {
+            simulador.simularNota(sim, sim.getEvaluaciones().get(1), 10);
+            verificar("simular una evaluacion ya rendida debe fallar", true, false);
+        } catch (IllegalArgumentException e) {
+            verificar("simular una evaluacion ya rendida lanza IllegalArgumentException", true, true);
+        }
+        try {
+            simulador.simularNota(sim, examen3, 25);
+            verificar("simular con nota 25 debe fallar", true, false);
+        } catch (NotaInvalidaException e) {
+            verificar("simular con nota 25 lanza NotaInvalidaException", true, true);
+        }
+
+        // --- Estadisticas de un ciclo con dos cursos (cada sustitutorio solo afecta a su curso) ---
+        Ciclo ciclo = new Ciclo("2026-B", 2026);
+        Curso a = cursoUNSA("C1");
+        notaExamen(a, 1, 6);
+        notaExamen(a, 2, 14);
+        notaSustitutorio(a, 10);   // reemplaza el 6 por 10
+        Curso b = cursoUNSA("C2");
+        notaExamen(b, 1, 12);
+        notaExamen(b, 2, 8);
+        notaSustitutorio(b, 15);   // reemplaza el 8 por 15
+        ciclo.agregarCurso(a);
+        ciclo.agregarCurso(b);
+        verificar("ciclo: notas que cuentan son 10, 14, 12 y 15", "[10.0, 14.0, 12.0, 15.0]",
+            evaluador.notasEfectivasDeCiclo(ciclo).toString());
+        EstadisticasNotas estCiclo = evaluador.estadisticasDeCiclo(ciclo);
+        verificar("ciclo: hay datos", true, estCiclo.hayDatos());
+        verificar("ciclo: maxima 15", 15.0, estCiclo.getMaxima());
+        verificar("ciclo: minima 10", 10.0, estCiclo.getMinima());
+        verificar("ciclo: mediana 13", 13.0, estCiclo.getMediana());
+        verificar("ciclo: promedio 12.75", 12.75, estCiclo.getPromedio());
+        Estudiante estudiante = new Estudiante("Ana", "Perez", "71234567", "ana@unsa.edu.pe", "20261111", "Sistemas");
+        estudiante.agregarCiclo(ciclo);
+        verificar("acumuladas: mismas 4 notas", 4.0, evaluador.notasEfectivasAcumuladas(estudiante).size());
+        verificar("acumuladas: maxima 15", 15.0, evaluador.estadisticasAcumuladas(estudiante).getMaxima());
+        verificar("ciclo sin cursos: no hay datos", false, evaluador.estadisticasDeCiclo(new Ciclo("2027-A", 2027)).hayDatos());
+
+        // --- Continua.quitarTrabajo ---
+        Continua continua = new Continua(1, 15);
+        TrabajoContinua t1 = new TrabajoContinua("Tarea 1", 40, false);
+        TrabajoContinua t2 = new TrabajoContinua("Tarea 2", 60, true);
+        continua.agregarTrabajo(t1);
+        continua.agregarTrabajo(t2);
+        verificar("quitarTrabajo: quita uno que esta (true)", true, continua.quitarTrabajo(t1));
+        verificar("quitarTrabajo: el peso interno baja a 60", 60.0, continua.getPesoInterno());
+        verificar("quitarTrabajo: quitar uno que ya no esta (false)", false, continua.quitarTrabajo(t1));
+        verificar("quitarTrabajo: queda 1 trabajo", 1.0, continua.getTrabajos().size());
     }
 }
