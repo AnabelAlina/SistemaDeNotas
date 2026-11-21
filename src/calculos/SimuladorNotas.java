@@ -1,10 +1,12 @@
 package calculos;
 
+import evaluaciones.Evaluacion;
+import evaluaciones.Examen;
+import evaluaciones.ExamenSustitutorio;
+import excepciones.NotaInvalidaException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import evaluaciones.Evaluacion;
-import excepciones.NotaInvalidaException;
 import modelo.Curso;
 
 // Estudiante 2 - Ayelen Choquecota - Simulador: promedio si saco X (simularNota), nota necesaria para una meta
@@ -37,11 +39,84 @@ public class SimuladorNotas {
         if (proxima == null) {
             return curso.calcularPromedio();
         }
+        return simularNota(curso, proxima, nota);
+    }
+
+    // Igual, pero la ventana elige CUAL evaluacion simular (una pendiente del curso).
+    // Lanza IllegalArgumentException si no es del curso, si ya tiene nota o si es el sustitutorio
+    // (para eso esta simularSustitutorio). Nunca modifica el curso.
+    public double simularNota(Curso curso, Evaluacion evaluacion, double nota) throws NotaInvalidaException {
+        if (curso == null || evaluacion == null) {
+            throw new IllegalArgumentException("Falta el curso o la evaluacion a simular.");
+        }
+        int posicion = curso.getEvaluaciones().indexOf(evaluacion);
+        if (posicion < 0) {
+            throw new IllegalArgumentException("Esa evaluacion no es de este curso.");
+        }
+        if (NotasEfectivas.esOpcional(evaluacion)) {
+            throw new IllegalArgumentException("El sustitutorio se simula con simularSustitutorio.");
+        }
+        if (evaluacion.isRendida()) {
+            throw new IllegalArgumentException(evaluacion.getNombre() + " ya tiene nota: elige una pendiente.");
+        }
         ArrayList<Evaluacion> copia = new ArrayList<>(curso.getEvaluaciones());
-        Simulada simulada = new Simulada(proxima.getNombre(), proxima.getPeso(), proxima.getFecha());
+        Simulada simulada = new Simulada(evaluacion.getNombre(), evaluacion.getPeso(), evaluacion.getFecha());
         simulada.setNota(nota); // lanza NotaInvalidaException si no esta entre 0 y 20
-        copia.set(copia.indexOf(proxima), simulada);
+        copia.set(posicion, simulada);
         return new PromedioPonderado().calcular(copia);
+    }
+
+    // Promedio que quedaria si se rindiera el sustitutorio con "nota" (reemplaza la mas baja del
+    // Examen 1 o 2, solo si la mejora). Si el curso ya tenia sustitutorio, se simula en su lugar.
+    public double simularSustitutorio(Curso curso, double nota) throws NotaInvalidaException {
+        if (curso == null) {
+            throw new IllegalArgumentException("El curso no puede ser nulo.");
+        }
+        ArrayList<Evaluacion> copia = new ArrayList<>();
+        for (Evaluacion e : curso.getEvaluaciones()) {
+            if (!(e instanceof ExamenSustitutorio)) {
+                copia.add(e);
+            }
+        }
+        ExamenSustitutorio simulado = new ExamenSustitutorio();
+        simulado.setNota(nota); // lanza NotaInvalidaException si no esta entre 0 y 20
+        copia.add(simulado);
+        return new PromedioPonderado().calcular(copia);
+    }
+
+    // Nota que se necesita en el sustitutorio para que el promedio actual llegue a "meta".
+    // Con m = la nota mas baja entre Examen 1 y 2, w = su peso, P = peso ya rendido y prom = promedio actual:
+    //   X = m + (meta - prom) x P / w
+    // Resultado:
+    //  - NaN: no aplica (no hay Examen 1 ni 2 rendido, o el sustitutorio ya se rindio)
+    //  - 0: no hace falta rendirlo (con X menor o igual que m la nota no mejora)
+    //  - mayor que 20: imposible llegar a la meta con el sustitutorio
+    //  - otro valor: la nota que hay que sacar
+    public double notaNecesariaSustitutorio(Curso curso, double meta) {
+        ExamenSustitutorio sustitutorio = curso.getSustitutorio();
+        if (sustitutorio != null && sustitutorio.isRendida()) {
+            return Double.NaN;
+        }
+        double suma = 0;
+        double pesoRendido = 0;
+        Evaluacion masBajo = null;
+        double notaMasBaja = 0;
+        for (java.util.Map.Entry<Evaluacion, Double> par : NotasEfectivas.calcular(curso.getEvaluaciones()).entrySet()) {
+            Evaluacion e = par.getKey();
+            double nota = par.getValue();
+            suma += nota * e.getPeso();
+            pesoRendido += e.getPeso();
+            if (e instanceof Examen && ((Examen) e).getNumero() <= 2 && (masBajo == null || nota < notaMasBaja)) {
+                masBajo = e;
+                notaMasBaja = nota;
+            }
+        }
+        if (masBajo == null || pesoRendido == 0) {
+            return Double.NaN;
+        }
+        double promedio = suma / pesoRendido;
+        double necesaria = notaMasBaja + (meta - promedio) * pesoRendido / masBajo.getPeso();
+        return necesaria <= notaMasBaja ? 0 : necesaria;
     }
 
     // Nota que se necesita, en promedio, en TODAS las evaluaciones pendientes para llegar a "meta":
