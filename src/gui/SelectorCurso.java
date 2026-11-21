@@ -202,23 +202,5 @@ public class SelectorCurso extends JPanel {
         }
     }
 
-    // ---------- main TEMPORAL para probar el selector solo (Karol lo quita en el PR 6) ----------
-    public static void main(String[] args) throws Exception {
-        GestorNotas gestor = new GestorNotas(new persistencia.RepositorioArchivo("datos/notas.txt"));
-        Estudiante a = new Estudiante("Ana", "Pérez", "71234567", "ana@unsa.edu.pe", "20261111", "Sistemas");
-        Estudiante b = new Estudiante("Luis", "Ramos", "72345678", "luis@unsa.edu.pe", "20262222", "Sistemas");
-        a.agregarCiclo(new Ciclo("2026-A", 2026));
-        a.agregarCiclo(new Ciclo("2026-B", 2026));
-        a.getCicloActual().agregarCursosPredeterminados(14);
-        b.agregarCiclo(new Ciclo("2026-B", 2026));
-        gestor.agregarEstudiante(a);
-        gestor.agregarEstudiante(b);
-
-        javax.swing.JFrame f = new javax.swing.JFrame("Prueba SelectorCurso");
-        SelectorCurso selector = new SelectorCurso(gestor);
-        f.add(selector);
-        f.setDefaultCloseOperation(javax.swing.JFrame.DISPOSE_ON_CLOSE);
-        f.setSize(700, 80);
-        f.setVisible(true);
-    }
+    
 }

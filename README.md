@@ -1,6 +1,6 @@
 # Sistema de Notas UNSA
 
-Aplicación de consola en Java orientada a objetos para gestionar el rendimiento académico de estudiantes de la Universidad Nacional de San Agustín (UNSA): registro de estudiantes, ciclos, cursos predeterminados (1.er año, 2.º semestre) y manuales, evaluaciones continuas con trabajos internos, exámenes teóricos, examen sustitutorio, estadísticas, simulador de notas, exportación a CSV y persistencia en archivo.
+Aplicación en Java orientada a objetos con interfaz gráfica (**Java Swing**) y modo consola alternativo para gestionar el rendimiento académico de estudiantes de la Universidad Nacional de San Agustín (UNSA): registro de estudiantes (con validación de DNI, CUI y correo `@unsa.edu.pe`), ciclos, cursos predeterminados (1.er año, 2.º semestre) y manuales, evaluaciones continuas con trabajos internos, exámenes teóricos, examen sustitutorio, estadísticas, simulador de notas, exportación a CSV y persistencia en archivo.
 
 ---
 
@@ -41,6 +41,8 @@ java -Dfile.encoding=UTF-8 -cp out app.Main
 Desde la carpeta raíz (una vez compilado):
 
 ```bash
+java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaModelo
+java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaCalculos
 java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaUNSA
 java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaGuardado
 ```
@@ -49,9 +51,9 @@ java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaGuardado
 
 ## Persistencia y exportación
 
-- **Guardado automático / manual:** Los datos se almacenan en `datos/notas.txt` al elegir la opción **5. Guardar y salir** en el menú principal y se cargan automáticamente al iniciar el programa.
-- **Exportación CSV:** La opción **4. Exportar reporte CSV** genera un archivo compatible con Excel (separado por `;` y con codificación UTF-8 BOM) en `datos/reporte_<CUI>.csv`.
+- Persistencia (datos/notas.txt): Al iniciar app.Main, se cargan automáticamente los registros guardados. Puedes guardar en cualquier momento desde Guardar datos en VentanaPrincipal o al cerrar la ventana.
 
+- Exportación CSV: La opción Exportar reporte CSV genera un archivo compatible con Excel (separado por ; y con codificación UTF-8 BOM) en datos/reporte_<CUI>.csv.
 ---
 
 ## Estructura del proyecto
@@ -62,8 +64,10 @@ java -Dfile.encoding=UTF-8 -cp out pruebas.PruebaGuardado
 - `src/plan/`: Catálogo de cursos predeterminados UNSA (`PlanEstudios`).
 - `src/persistencia/`: Interfaz `Repositorio` e implementación en archivo de texto (`RepositorioArchivo`).
 - `src/exportacion/`: Interfaz `Exportable` e implementación CSV (`ExportadorCSV`).
+- src/gui/: Interfaz gráfica en Java Swing (Estilo, SelectorCurso, VentanaPrincipal, VentanaAcademica, VentanaNotas, VentanaAnalisis).
 - `src/app/`: Punto de entrada (`Main`), coordinador (`GestorNotas`), utilidades de consola (`Entrada`) y menús (`MenuPrincipal`, `MenuAcademico`, `MenuNotas`, `MenuAnalisis`).
 - `src/pruebas/`: Pruebas de verificación del modelo, cálculos y persistencia.
+- docs/uml_dominio.md: Diagrama de clases UML del sistema.
 
 ---
 
