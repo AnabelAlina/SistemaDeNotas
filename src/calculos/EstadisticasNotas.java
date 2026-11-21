@@ -1,10 +1,9 @@
 package calculos;
 
+import evaluaciones.Evaluacion;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import evaluaciones.Evaluacion;
 
 // Estudiante 2 - Ayelen Choquecota - Estadisticas de las notas: moda y frecuencias (HashMap), mediana y
 // maxima/minima (array ordenado), promedio, desviacion y tendencia.
@@ -26,15 +25,23 @@ public class EstadisticasNotas {
     private double[] notasOrdenadas = new double[0];
     private ArrayList<Double> notasEnOrden = new ArrayList<>(); // en el orden en que estan en la lista
 
-    // Llena el HashMap (nota -> cuantas veces aparece) y el array ordenado
+    // Llena el HashMap (nota -> cuantas veces aparece) y el array ordenado, con las notas de UN curso
     public void calcularFrecuencias(ArrayList<Evaluacion> evaluaciones) {
+        // Notas que cuentan (ya con la regla del sustitutorio aplicada)
+        calcularDesdeNotas(new ArrayList<>(NotasEfectivas.calcular(evaluaciones).values()));
+    }
+
+    // Igual que calcularFrecuencias, pero con una lista de notas ya calculadas.
+    // Sirve para un ciclo o para todo el historial: las notas efectivas se sacan curso por curso
+    // (ver EvaluadorCurso) y aqui solo se juntan los numeros.
+    public void calcularDesdeNotas(ArrayList<Double> notas) {
         frecuencias = new HashMap<>();
         notasEnOrden = new ArrayList<>();
-        // Notas que cuentan (ya con la regla del sustitutorio aplicada)
-        LinkedHashMap<Evaluacion, Double> efectivas = NotasEfectivas.calcular(evaluaciones);
-        for (double nota : efectivas.values()) {
-            notasEnOrden.add(nota);
-            frecuencias.put(nota, frecuencias.getOrDefault(nota, 0) + 1);
+        if (notas != null) {
+            for (double nota : notas) {
+                notasEnOrden.add(nota);
+                frecuencias.put(nota, frecuencias.getOrDefault(nota, 0) + 1);
+            }
         }
         notasOrdenadas = new double[notasEnOrden.size()];
         for (int i = 0; i < notasEnOrden.size(); i++) {
