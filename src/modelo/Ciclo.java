@@ -55,6 +55,15 @@ public class Ciclo implements Calculable {
         return curso;
     }
 
+    // Quita el curso con ese código. Devuelve true si lo quitó, false si no existía
+    public boolean quitarCurso(String codigo) {
+        Curso curso = buscarCurso(codigo);
+        if (curso == null) {
+            return false;
+        }
+        return cursos.remove(curso);
+    }
+
     // Devuelve el curso con ese código o null si no existe
     public Curso buscarCurso(String codigo) {
         if (codigo == null) {

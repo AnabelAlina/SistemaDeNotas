@@ -56,6 +56,11 @@ public class Continua extends Evaluacion {
         trabajos.add(trabajo);
     }
 
+    // Quita un trabajo (para corregir errores). Devuelve true si lo quitó, false si no estaba
+    public boolean quitarTrabajo(TrabajoContinua trabajo) {
+        return trabajos.remove(trabajo);
+    }
+
     // Suma de los % internos de los trabajos registrados
     public double getPesoInterno() {
         double total = 0;
