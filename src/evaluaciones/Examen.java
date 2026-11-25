@@ -1,9 +1,12 @@
 package evaluaciones;
 
-// Estudiante 2 - Ayelen Choquecota - Examen de teoria de un curso UNSA: Examen 1, 2 o 3.
+// Examen de teoria de un curso UNSA: Examen 1, 2 o 3.
 // Hereda de Evaluacion (herencia) y sobrescribe getTipo() (polimorfismo).
 // Su peso es el "% examen teoria" que dice el silabo (porcentaje sobre la nota final del curso).
 public class Examen extends Evaluacion {
+
+    private static final long serialVersionUID = 1L;
+
     private int numero; // 1, 2 o 3
 
     public Examen(int numero, double peso) {

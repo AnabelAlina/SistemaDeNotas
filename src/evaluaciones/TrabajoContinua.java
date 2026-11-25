@@ -1,13 +1,17 @@
 package evaluaciones;
 
+import java.io.Serializable;
 import excepciones.NotaInvalidaException;
 
-// Estudiante 2 - Ayelen Choquecota - Un trabajo dentro de una Continua (tarea, practica, exposicion...).
+// Un trabajo dentro de una Continua (tarea, practica, exposicion...).
 // Su peso es un porcentaje INTERNO de la continua (0 a 100): los trabajos de una continua suman 100%.
 // No es una Evaluacion del curso: vive dentro de Continua (composicion).
-public class TrabajoContinua {
+public class TrabajoContinua implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private String nombre;
-    private double peso;      // % dentro de la continua
+    private double peso; // % dentro de la continua
     private double nota;
     private boolean rendido;
     private boolean esGrupal;
@@ -35,7 +39,7 @@ public class TrabajoContinua {
     public void setNota(double nota) throws NotaInvalidaException {
         if (Double.isNaN(nota) || nota < Evaluacion.NOTA_MINIMA || nota > Evaluacion.NOTA_MAXIMA) {
             throw new NotaInvalidaException("La nota debe estar entre " + (int) Evaluacion.NOTA_MINIMA
-                + " y " + (int) Evaluacion.NOTA_MAXIMA + ". Recibido: " + nota);
+                    + " y " + (int) Evaluacion.NOTA_MAXIMA + ". Recibido: " + nota);
         }
         this.nota = nota;
         this.rendido = true;
@@ -44,6 +48,6 @@ public class TrabajoContinua {
     @Override
     public String toString() {
         return nombre + " (" + peso + "% de la continua" + (esGrupal ? ", grupal" : "") + "): "
-            + (rendido ? "nota " + nota : "pendiente");
+                + (rendido ? "nota " + nota : "pendiente");
     }
 }

@@ -1,11 +1,18 @@
 package modelo;
-import excepciones.PesoInvalidoException;
+
+import java.io.Serializable;
 import java.util.ArrayList;
+import excepciones.PesoInvalidoException;
 import plan.PlanEstudios;
-public class Ciclo implements Calculable {
+
+public class Ciclo implements Calculable, Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private String nombre; // ejemplo: "2026-A"
     private int anio;
     private ArrayList<Curso> cursos;
+
     public Ciclo(String nombre, int anio) {
         if (nombre == null || nombre.trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre del ciclo no puede estar vacío.");
@@ -17,9 +24,11 @@ public class Ciclo implements Calculable {
         this.anio = anio;
         this.cursos = new ArrayList<>();
     }
+
     public String getNombre() { return nombre; }
     public int getAnio() { return anio; }
     public ArrayList<Curso> getCursos() { return cursos; }
+
     // Valida que no haya dos cursos con el mismo código dentro del ciclo
     public void agregarCurso(Curso curso) {
         if (curso == null) {
@@ -28,7 +37,7 @@ public class Ciclo implements Calculable {
         for (Curso c : cursos) {
             if (c.getCodigo().equalsIgnoreCase(curso.getCodigo())) {
                 throw new IllegalArgumentException(
-                    "Ya existe un curso con el código " + curso.getCodigo() + " en este ciclo.");
+                        "Ya existe un curso con el código " + curso.getCodigo() + " en este ciclo.");
             }
         }
         cursos.add(curso);
@@ -47,7 +56,7 @@ public class Ciclo implements Calculable {
         return agregados;
     }
 
-    // Curso manual (repitentes u otros años): se rechaza si los 6 % no suman 100
+    // Curso manual (repitentes u otros años): se rechaza si los % no suman 100
     public Curso agregarCursoManual(String codigo, String nombre, int creditos, double meta,
                                     double[] pesosExamen, double[] pesosContinua) throws PesoInvalidoException {
         Curso curso = PlanEstudios.crearCurso(codigo, nombre, creditos, meta, pesosExamen, pesosContinua);
@@ -84,8 +93,8 @@ public class Ciclo implements Calculable {
         double creditos = 0;
         for (Curso curso : cursos) {
             if (curso.tieneNotas()) {
-                suma += curso.calcularPromedio() * curso.getCreditos();
                 creditos += curso.getCreditos();
+                suma += curso.calcularPromedio() * curso.getCreditos();
             }
         }
         return creditos == 0 ? 0 : suma / creditos;
