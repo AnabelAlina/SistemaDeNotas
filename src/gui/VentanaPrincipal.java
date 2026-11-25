@@ -210,7 +210,7 @@ public class VentanaPrincipal extends JFrame {
             } else if ("NOTAS".equals(cmd)) {
                 new VentanaNotas(gestor);
             } else if ("ANALISIS".equals(cmd)) {
-                new VentanaAnalisis(gestor);
+                new VentanaAnalisis(gestor, exportador);
             } else if ("EXPORTAR".equals(cmd)) {
                 exportarReporte();
             } else if ("GUARDAR".equals(cmd)) {

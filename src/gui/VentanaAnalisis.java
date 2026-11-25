@@ -65,14 +65,21 @@ public class VentanaAnalisis extends JFrame {
     private JTextArea areaEstadisticas;
 
     public VentanaAnalisis(GestorNotas gestor) {
+        this(gestor, new ExportadorCSV());
+    }
+
+    public VentanaAnalisis(GestorNotas gestor, Exportable exportador) {
         super("Análisis de notas");
         if (gestor == null) {
             throw new IllegalArgumentException("El gestor no puede ser nulo.");
         }
+        if (exportador == null) {
+            throw new IllegalArgumentException("El exportador no puede ser nulo.");
+        }
         this.gestor = gestor;
         this.evaluador = new EvaluadorCurso();
         this.simulador = new SimuladorNotas();
-        this.exportador = new ExportadorCSV();
+        this.exportador = exportador;
         this.pendientesSimulables = new ArrayList<>();
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -309,4 +316,152 @@ public class VentanaAnalisis extends JFrame {
     }
 
     // El promedio es parcial si falta rendir algo (sin contar el sustitutorio)
-    // o si
+    // o si hay una continua con trabajos por agregar o por calificar.
+    private boolean esParcial(Curso curso) {
+        for (Evaluacion ev : curso.getEvaluaciones()) {
+            if (NotasEfectivas.esOpcional(ev)) {
+                continue;
+            }
+            if (!ev.isRendida()) {
+                return true;
+            }
+            if (ev instanceof Continua && !((Continua) ev).isCompleta()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ---------- Texto de estadísticas ----------
+
+    private String textoEstadisticas(Curso curso) {
+        StringBuilder sb = new StringBuilder();
+        EstadisticasNotas est = new EstadisticasNotas();
+        est.calcularFrecuencias(curso.getEvaluaciones()); // SIEMPRE antes de pedir resultados
+
+        if (!est.hayDatos()) {
+            sb.append("Todavía no hay notas.\n");
+        } else {
+            sb.append("Nota máxima: ").append(formato(est.getMaxima())).append("\n");
+            sb.append("Nota mínima: ").append(formato(est.getMinima())).append("\n");
+            sb.append("Mediana: ").append(formato(est.getMediana())).append("\n");
+            sb.append("Desviación: ").append(formato(est.getDesviacion())).append("\n");
+            sb.append("Tendencia: ").append(est.getTendencia()).append("\n");
+            if (est.getFrecuenciaModa() <= 1) {
+                sb.append("Moda: ninguna nota se repite\n");
+            } else {
+                sb.append("Moda: ").append(formato(est.getModa())).append(" (aparece ")
+                        .append(est.getFrecuenciaModa()).append(" veces)\n");
+            }
+        }
+
+        sb.append("\nDistribución por rangos:\n");
+        for (Map.Entry<String, Integer> entrada : evaluador.distribucionPorRangos(curso).entrySet()) {
+            sb.append("  ").append(entrada.getKey()).append(": ").append(entrada.getValue()).append("\n");
+        }
+
+        // Avisos de continuas incompletas
+        ArrayList<String> avisos = new ArrayList<>();
+        for (Evaluacion ev : curso.getEvaluaciones()) {
+            if (ev instanceof Continua) {
+                Continua c = (Continua) ev;
+                if (c.isRendida() && !c.isCompleta()) {
+                    avisos.add("Continua " + c.getNumero() + " está incompleta: el promedio y la nota "
+                            + "necesaria son aproximados.");
+                }
+            }
+        }
+        if (!avisos.isEmpty()) {
+            sb.append("\n");
+            for (String aviso : avisos) {
+                sb.append(aviso).append("\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    private String formato(double valor) {
+        return String.format("%.2f", valor);
+    }
+
+    // ---------- Acciones de simulación y exportación ----------
+
+    private void ejecutarSimulacion() {
+        Curso curso = selector.getCurso();
+        int idx = comboEvalSimular.getSelectedIndex();
+        if (curso == null || idx < 0) {
+            return;
+        }
+
+        double nota;
+        try {
+            nota = Double.parseDouble(txtNotaSimular.getText().trim().replace(',', '.'));
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingresa una nota válida (0 a 20).",
+                    "Dato inválido", JOptionPane.ERROR_MESSAGE);
+            txtNotaSimular.requestFocus();
+            return;
+        }
+
+        try {
+            String elegido = (String) comboEvalSimular.getSelectedItem();
+            double promSimulado;
+            if ("Examen sustitutorio".equals(elegido)) {
+                promSimulado = simulador.simularSustitutorio(curso, nota);
+            } else {
+                Evaluacion ev = pendientesSimulables.get(idx);
+                promSimulado = simulador.simularNota(curso, ev, nota);
+            }
+            lblResultadoSimulacion.setText("Con " + formato(nota) + " en " + elegido
+                    + " -> Promedio: " + formato(promSimulado));
+        } catch (NotaInvalidaException | IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(),
+                    "Error en simulación", JOptionPane.ERROR_MESSAGE);
+            txtNotaSimular.requestFocus();
+        }
+    }
+
+    private void exportarCSV() {
+        Estudiante est = selector.getEstudiante();
+        if (est == null) {
+            JOptionPane.showMessageDialog(this, "No hay estudiante seleccionado.",
+                    "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String rutaDefecto = "datos/reporte_" + est.getCodigo() + ".csv";
+        String ruta = JOptionPane.showInputDialog(this, "Ruta del archivo CSV:", rutaDefecto);
+        if (ruta == null || ruta.trim().isEmpty()) {
+            return;
+        }
+
+        try {
+            exportador.exportar(est, ruta.trim());
+            JOptionPane.showMessageDialog(this, "Reporte exportado en:\n" + ruta.trim(),
+                    "Exportación exitosa", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error al exportar: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // ---------- Listener de los botones ----------
+
+    private class Escucha implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            String comando = e.getActionCommand();
+            try {
+                if (comando.equals("Actualizar")) {
+                    selector.recargar();
+                } else if (comando.equals("Simular")) {
+                    ejecutarSimulacion();
+                } else if (comando.equals("Exportar CSV")) {
+                    exportarCSV();
+                }
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(VentanaAnalisis.this, ex.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+}

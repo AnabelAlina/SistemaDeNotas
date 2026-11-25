@@ -1,14 +1,14 @@
 package persistencia;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 import evaluaciones.Continua;
 import evaluaciones.Evaluacion;
@@ -22,8 +22,8 @@ import modelo.Curso;
 import modelo.Estudiante;
 
 /**
- * Guarda y carga los datos en un archivo de texto, una línea por registro,
- * con los campos separados por ';'.
+ * Guarda y carga los datos en un archivo de texto usando PrintWriter y Scanner,
+ * una línea por registro, con los campos separados por ';'.
  *
  * Formato jerárquico:
  *   ESTUDIANTE;nombre;apellido;dni;correo;codigo;carrera
@@ -38,23 +38,44 @@ public class RepositorioArchivo implements Repositorio {
     private static final String SIN_FECHA = "-";
 
     private String rutaArchivo;
+    private boolean respaldoRealizado;
+    private ArrayList<String> advertencias;
 
     public RepositorioArchivo(String rutaArchivo) {
         if (rutaArchivo == null || rutaArchivo.trim().isEmpty()) {
             throw new IllegalArgumentException("La ruta del archivo no puede estar vacía.");
         }
         this.rutaArchivo = rutaArchivo.trim();
+        this.respaldoRealizado = false;
+        this.advertencias = new ArrayList<>();
+    }
+
+    @Override
+    public ArrayList<String> getAdvertencias() {
+        return new ArrayList<>(advertencias);
     }
 
     // ===================== GUARDAR =====================
 
     @Override
     public void guardar(ArrayList<Estudiante> estudiantes) throws IOException {
-        Path ruta = Paths.get(rutaArchivo);
-        if (ruta.getParent() != null) {
-            Files.createDirectories(ruta.getParent());
+        File archivo = new File(rutaArchivo);
+        File carpetaPadre = archivo.getParentFile();
+        if (carpetaPadre != null && !carpetaPadre.exists()) {
+            carpetaPadre.mkdirs();
         }
-        try (BufferedWriter out = Files.newBufferedWriter(ruta, StandardCharsets.UTF_8)) {
+
+        // Respaldo .bak solo en el primer guardado de la sesión si ya existe el archivo
+        if (!respaldoRealizado && archivo.exists()) {
+            File archivoBak = new File(rutaArchivo + ".bak");
+            if (archivoBak.exists()) {
+                archivoBak.delete();
+            }
+            archivo.renameTo(archivoBak);
+            respaldoRealizado = true;
+        }
+
+        try (PrintWriter out = new PrintWriter(new FileWriter(archivo, StandardCharsets.UTF_8))) {
             for (Estudiante est : estudiantes) {
                 escribir(out, "ESTUDIANTE", est.getNombre(), est.getApellido(), est.getDni(),
                         est.getCorreo(), est.getCodigo(), est.getCarrera());
@@ -73,7 +94,7 @@ public class RepositorioArchivo implements Repositorio {
         }
     }
 
-    private void escribirEvaluacion(BufferedWriter out, Evaluacion ev) throws IOException {
+    private void escribirEvaluacion(PrintWriter out, Evaluacion ev) {
         String extra;
         if (ev instanceof Examen) {
             extra = String.valueOf(((Examen) ev).getNumero());
@@ -101,30 +122,43 @@ public class RepositorioArchivo implements Repositorio {
         }
     }
 
-    private void escribir(BufferedWriter out, String... campos) throws IOException {
+    private void escribir(PrintWriter out, String... campos) {
         StringBuilder linea = new StringBuilder();
         for (int i = 0; i < campos.length; i++) {
             if (i > 0) {
                 linea.append(SEP);
             }
-            linea.append(limpiar(campos[i]));
+            linea.append(escapar(campos[i]));
         }
-        out.write(linea.toString());
-        out.newLine();
+        out.println(linea.toString());
     }
 
-    private String limpiar(String texto) {
-        return texto.replace(SEP, ",").replace("\n", " ").replace("\r", " ");
+    private String escapar(String texto) {
+        if (texto == null) {
+            return "";
+        }
+        return texto.replace("%", "%25")
+                .replace(SEP, "%3B")
+                .replace("\n", " ")
+                .replace("\r", " ");
+    }
+
+    private String desescapar(String texto) {
+        if (texto == null) {
+            return "";
+        }
+        return texto.replace("%3B", SEP).replace("%25", "%");
     }
 
     // ===================== CARGAR =====================
 
     @Override
     public ArrayList<Estudiante> cargar() throws IOException {
+        advertencias.clear();
         ArrayList<Estudiante> resultado = new ArrayList<>();
-        Path ruta = Paths.get(rutaArchivo);
+        File archivo = new File(rutaArchivo);
 
-        if (!Files.exists(ruta)) {
+        if (!archivo.exists()) {
             return resultado;
         }
 
@@ -133,15 +167,18 @@ public class RepositorioArchivo implements Repositorio {
         Curso curso = null;
         Continua ultimaContinua = null;
 
-        try (BufferedReader in = Files.newBufferedReader(ruta, StandardCharsets.UTF_8)) {
-            String linea;
+        try (Scanner in = new Scanner(new FileReader(archivo, StandardCharsets.UTF_8))) {
             int numLinea = 0;
-            while ((linea = in.readLine()) != null) {
+            while (in.hasNextLine()) {
+                String linea = in.nextLine();
                 numLinea++;
                 if (linea.trim().isEmpty()) {
                     continue;
                 }
                 String[] p = linea.split(SEP, -1);
+                for (int i = 0; i < p.length; i++) {
+                    p[i] = desescapar(p[i]);
+                }
                 try {
                     switch (p[0]) {
                         case "ESTUDIANTE":
@@ -187,13 +224,13 @@ public class RepositorioArchivo implements Repositorio {
                             }
                             break;
                         default:
-                            System.out.println("Línea " + numLinea + " ignorada: tipo desconocido.");
+                            advertencias.add("Línea " + numLinea + " ignorada: tipo desconocido.");
                     }
                 } catch (ArrayIndexOutOfBoundsException e) {
-                    System.out.println("Línea " + numLinea + " ignorada: faltan campos.");
+                    advertencias.add("Línea " + numLinea + " ignorada: faltan campos.");
                 } catch (IllegalArgumentException | DateTimeParseException
                          | PesoInvalidoException | NotaInvalidaException e) {
-                    System.out.println("Línea " + numLinea + " ignorada: " + e.getMessage());
+                    advertencias.add("Línea " + numLinea + " ignorada: " + e.getMessage());
                 }
             }
         }
