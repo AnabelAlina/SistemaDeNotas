@@ -309,6 +309,9 @@ public class VentanaAnalisis extends JFrame {
         if (estado == EstadoCurso.APROBADO) {
             return Estilo.COLOR_APROBADO;
         }
+        if (estado == EstadoCurso.VAS_APROBANDO) {
+            return Estilo.COLOR_VAS_APROBANDO;
+        }
         if (estado == EstadoCurso.EN_RIESGO) {
             return Estilo.COLOR_EN_RIESGO;
         }

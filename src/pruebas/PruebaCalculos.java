@@ -54,7 +54,11 @@ public class PruebaCalculos {
     private static void notaSustitutorio(Curso curso, double nota) throws Exception {
         curso.obtenerOCrearSustitutorio().setNota(nota);
     }
-
+        // Curso del documento: Examen 25, 25, 20 y Continuas 10, 10, 10
+    private static Curso cursoDoc(String codigo) throws Exception {
+        return PlanEstudios.crearCurso(codigo, "Curso " + codigo, 4, 14,
+            new double[]{25, 25, 20}, new double[]{10, 10, 10});
+    }
     public static void main(String[] args) throws Exception {
         // --- Validaciones básicas de Examen ---
         Examen ex = new Examen(1, 20);
@@ -98,7 +102,7 @@ public class PruebaCalculos {
         Curso aprobado = cursoUNSA("U2");
         notaContinua(aprobado, 1, 16);
         notaExamen(aprobado, 1, 14);
-        verificar("estado: promedio 15 con pendientes -> APROBADO", EstadoCurso.APROBADO, evaluador.estadoDe(aprobado));
+        verificar("estado: promedio 15 con pendientes -> VAS_APROBANDO", EstadoCurso.VAS_APROBANDO, evaluador.estadoDe(aprobado));
 
         Curso enRiesgo = cursoUNSA("U3");
         notaContinua(enRiesgo, 1, 8);
@@ -182,7 +186,46 @@ public class PruebaCalculos {
         continua.agregarTrabajo(t2);
         verificar("quitarTrabajo: quita uno que esta (true)", true, continua.quitarTrabajo(t1));
         verificar("quitarTrabajo: el peso interno baja a 60", 60.0, continua.getPesoInterno());
+                // --- Peso pendiente real y nota necesaria (continua incompleta) ---
+        Curso incompleta = cursoDoc("D1");
+        Continua contInc = (Continua) incompleta.getEvaluaciones().get(0);
+        TrabajoContinua trabajo60 = new TrabajoContinua("Trabajo 1", 60, false);
+        contInc.agregarTrabajo(trabajo60);
+        trabajo60.setNota(18);
+        verificar("peso pendiente: 100 - 6 ganado = 94", 94.0, simulador.pesoPendiente(incompleta));
+        verificar("puntos ganados: 18 x 6 / 100 = 1.08", 1.08, simulador.puntosGanados(incompleta));
+        verificar("nota necesaria: continua incompleta, meta 14 -> 13.7447", 13.7447, simulador.notaNecesaria(incompleta, 14));
+        verificar("continua incompleta cuenta como pendiente", true, simulador.hayEvaluacionesPendientes(incompleta));
+        verificar("nota necesaria: curso todo rendido -> 0", 0.0, simulador.notaNecesaria(terminadoBien, 14));
+        verificar("peso pendiente: curso todo rendido -> 0", 0.0, simulador.pesoPendiente(terminadoBien));
+        verificar("simularNota no cambia la nota guardada", 8.0, enRiesgo.calcularPromedio());
+        double antesSim = enRiesgo.calcularPromedio();
+        simulador.simularNota(enRiesgo, 15);
+        verificar("simularNota deja el promedio igual", antesSim, enRiesgo.calcularPromedio());
+        verificar("simularNota deja la evaluacion pendiente", false, enRiesgo.getEvaluaciones().get(2).isRendida());
 
+        // --- Estado con cuatro etiquetas (Ex 25, 25, 20 y Continuas 10, 10, 10) ---
+        Curso soloEx1 = cursoDoc("D2");
+        notaExamen(soloEx1, 1, 15);
+        verificar("estado: solo Examen 1 = 15 -> VAS_APROBANDO", EstadoCurso.VAS_APROBANDO, evaluador.estadoDe(soloEx1));
+
+        Curso asegurado = cursoDoc("D3");
+        notaExamen(asegurado, 1, 20);
+        notaExamen(asegurado, 2, 20);
+        notaContinua(asegurado, 1, 20);
+        verificar("estado: 60% con 20 = 12 puntos -> APROBADO", EstadoCurso.APROBADO, evaluador.estadoDe(asegurado));
+
+        Curso soloEx1Bajo = cursoDoc("D4");
+        notaExamen(soloEx1Bajo, 1, 3);
+        verificar("estado: solo Examen 1 = 3 -> EN_RIESGO", EstadoCurso.EN_RIESGO, evaluador.estadoDe(soloEx1Bajo));
+
+        Curso dosCeros = cursoDoc("D5");
+        notaExamen(dosCeros, 1, 0);
+        notaExamen(dosCeros, 2, 0);
+        verificar("estado: Examen 1 = 0 y Examen 2 = 0 -> DESAPROBADO", EstadoCurso.DESAPROBADO, evaluador.estadoDe(dosCeros));
+
+        verificar("estado: curso sin notas -> null", true, evaluador.estadoDe(cursoDoc("D6")) == null);
+        verificar("estado: texto de VAS_APROBANDO", "Vas aprobando", EstadoCurso.VAS_APROBANDO.getTexto());
         System.out.println();
         System.out.println(fallos == 0 ? "TODO OK" : "HAY " + fallos + " FALLO(S)");
     }
