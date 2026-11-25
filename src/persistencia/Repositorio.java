@@ -8,7 +8,7 @@ import modelo.Estudiante;
  * Contrato para guardar y cargar los datos de la aplicación.
  *
  * GestorNotas solo conoce esta interfaz (no las clases concretas),
- * así podemos cambiar de archivo a base de datos sin tocar el gestor.
+ * así podemos cambiar de formato o almacenamiento sin tocar el gestor.
  */
 public interface Repositorio {
 
@@ -17,4 +17,9 @@ public interface Repositorio {
 
     // Lee lo guardado y devuelve la lista de estudiantes (vacía si no hay datos)
     ArrayList<Estudiante> cargar() throws IOException;
+
+    // Advertencias registradas durante la última carga (vacía si no hubo problemas)
+    default ArrayList<String> getAdvertencias() {
+        return new ArrayList<>();
+    }
 }
