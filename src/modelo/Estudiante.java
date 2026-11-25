@@ -3,12 +3,15 @@ package modelo;
 import java.util.ArrayList;
 
 public class Estudiante extends Persona implements Calculable {
+
+    private static final long serialVersionUID = 1L;
+
     private String codigo; // CUI: 8 cifras
     private String carrera;
     private ArrayList<Ciclo> ciclos; // composición: los ciclos pertenecen al estudiante
 
     public Estudiante(String nombre, String apellido, String dni, String correo,
-                    String codigo, String carrera) {
+                      String codigo, String carrera) {
         super(nombre, apellido, dni, correo);
         this.codigo = validarCui(codigo);
         this.carrera = validarTexto(carrera, "carrera");
@@ -18,6 +21,7 @@ public class Estudiante extends Persona implements Calculable {
     public String getCodigo() { return codigo; }
     public String getCarrera() { return carrera; }
     public ArrayList<Ciclo> getCiclos() { return ciclos; }
+
     // CUI: exactamente 8 cifras
     public static String validarCui(String cui) {
         String limpio = validarTexto(cui, "CUI");
@@ -26,6 +30,7 @@ public class Estudiante extends Persona implements Calculable {
         }
         return limpio;
     }
+
     // Correo institucional: usuario@unsa.edu.pe
     public static String validarCorreoInstitucional(String correo) {
         String limpio = Persona.validarCorreo(correo);
@@ -34,6 +39,7 @@ public class Estudiante extends Persona implements Calculable {
         }
         return limpio;
     }
+
     // Sobrescribe el de Persona: el estudiante además exige correo @unsa.edu.pe
     @Override
     public void setCorreo(String correo) {
@@ -80,7 +86,7 @@ public class Estudiante extends Persona implements Calculable {
         return ciclos.get(ciclos.size() - 1);
     }
 
-    // Promedio acumulado: suma(promedio curso x créditos) / suma(créditos)
+    // Promedio acumulado: suma (promedio curso x créditos) / suma (créditos)
     @Override
     public double calcularPromedio() {
         double suma = 0;

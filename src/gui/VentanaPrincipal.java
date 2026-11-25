@@ -1,16 +1,19 @@
 package gui;
 
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -20,17 +23,23 @@ import javax.swing.SwingConstants;
 import app.GestorNotas;
 import exportacion.Exportable;
 import modelo.Estudiante;
+import persistencia.RepositorioArchivo;
+import persistencia.RepositorioObjetos;
 
 /**
  * Ventana principal del Sistema de Notas UNSA.
- * Reemplaza a MenuPrincipal de la consola y coordina el acceso a las ventanas
- * de Gestión Académica, Registro de Notas, Análisis, Exportación CSV y Guardado.
  */
 public class VentanaPrincipal extends JFrame {
+
+    private static final String RUTA_TXT = "datos/notas.txt";
+    private static final String RUTA_DAT = "datos/notas.dat";
+    private static final String OPCION_TXT = "Texto (.txt)";
+    private static final String OPCION_DAT = "Objetos (.dat)";
 
     private GestorNotas gestor;
     private Exportable exportador;
     private JLabel lblEstudianteActual;
+    private JComboBox<String> comboFormato;
 
     public VentanaPrincipal(GestorNotas gestor, Exportable exportador) {
         super("Sistema de Notas UNSA");
@@ -41,7 +50,7 @@ public class VentanaPrincipal extends JFrame {
         this.exportador = exportador;
 
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-        setSize(560, 440);
+        setSize(580, 490);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(12, 12));
         getContentPane().setBackground(Estilo.COLOR_FONDO);
@@ -66,7 +75,7 @@ public class VentanaPrincipal extends JFrame {
         // Botonera central
         JPanel centro = new JPanel(new GridLayout(5, 1, 10, 10));
         centro.setBackground(Estilo.COLOR_FONDO);
-        centro.setBorder(BorderFactory.createEmptyBorder(10, 40, 20, 40));
+        centro.setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 40));
 
         Escucha escucha = new Escucha();
         centro.add(crearBoton("Gestión académica (estudiantes, ciclos, cursos)", "ACADEMICA", escucha));
@@ -76,7 +85,31 @@ public class VentanaPrincipal extends JFrame {
         centro.add(crearBoton("Guardar datos", "GUARDAR", escucha));
         add(centro, BorderLayout.CENTER);
 
-        // Actualiza el estudiante mostrado cada vez que esta ventana recupera el foco
+        // Panel inferior: formato de guardado y botón Cargar datos
+        JPanel sur = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        sur.setBackground(Estilo.COLOR_FONDO);
+        sur.setBorder(BorderFactory.createEmptyBorder(0, 15, 10, 15));
+
+        JLabel lblFormato = new JLabel("Formato de guardado:");
+        lblFormato.setFont(Estilo.FUENTE_NORMAL);
+        lblFormato.setForeground(Estilo.COLOR_TEXTO);
+
+        comboFormato = new JComboBox<>(new String[] { OPCION_TXT, OPCION_DAT });
+        comboFormato.setFont(Estilo.FUENTE_NORMAL);
+        comboFormato.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cambiarRepositorio();
+            }
+        });
+
+        JButton btnCargar = crearBoton("Cargar datos", "CARGAR", escucha);
+
+        sur.add(lblFormato);
+        sur.add(comboFormato);
+        sur.add(btnCargar);
+        add(sur, BorderLayout.SOUTH);
+
         addWindowFocusListener(new WindowAdapter() {
             @Override
             public void windowGainedFocus(WindowEvent e) {
@@ -84,7 +117,6 @@ public class VentanaPrincipal extends JFrame {
             }
         });
 
-        // Pregunta si desea guardar antes de cerrar la aplicación
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -102,6 +134,60 @@ public class VentanaPrincipal extends JFrame {
         boton.setActionCommand(comando);
         boton.addActionListener(escucha);
         return boton;
+    }
+
+    private void cambiarRepositorio() {
+        String elegido = (String) comboFormato.getSelectedItem();
+        if (OPCION_DAT.equals(elegido)) {
+            gestor.setRepositorio(new RepositorioObjetos(RUTA_DAT));
+        } else {
+            gestor.setRepositorio(new RepositorioArchivo(RUTA_TXT));
+        }
+    }
+
+    private void cargarDatos() {
+        String elegido = (String) comboFormato.getSelectedItem();
+        String ruta = OPCION_DAT.equals(elegido) ? RUTA_DAT : RUTA_TXT;
+        File archivo = new File(ruta);
+
+        if (!archivo.exists()) {
+            JOptionPane.showMessageDialog(this,
+                    "No hay datos guardados en ese formato (" + ruta + ").",
+                    "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirmacion = JOptionPane.showConfirmDialog(this,
+                "Se reemplazarán los datos actuales con los de " + ruta + ". ¿Continuar?",
+                "Confirmar carga",
+                JOptionPane.YES_NO_OPTION);
+        if (confirmacion != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        cambiarRepositorio();
+        try {
+            gestor.cargar();
+            actualizarEstudianteActual();
+            ArrayList<String> adv = gestor.getAdvertenciasCarga();
+            if (!adv.isEmpty()) {
+                StringBuilder sb = new StringBuilder("Datos cargados con " + adv.size() + " advertencia(s):\n");
+                int limite = Math.min(10, adv.size());
+                for (int i = 0; i < limite; i++) {
+                    sb.append("- ").append(adv.get(i)).append("\n");
+                }
+                JOptionPane.showMessageDialog(this, sb.toString(),
+                        "Advertencias", JOptionPane.WARNING_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Datos cargados correctamente desde " + ruta + ".",
+                        "Carga exitosa", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "No se pudo cargar: " + e.getMessage(),
+                    "Error al cargar", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void actualizarEstudianteActual() {
@@ -215,6 +301,8 @@ public class VentanaPrincipal extends JFrame {
                 exportarReporte();
             } else if ("GUARDAR".equals(cmd)) {
                 guardarDatos();
+            } else if ("CARGAR".equals(cmd)) {
+                cargarDatos();
             }
         }
     }

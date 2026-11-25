@@ -1,14 +1,18 @@
 package modelo;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import calculos.EstrategiaPromedio;
 import calculos.PromedioPonderado;
 import calculos.SimuladorNotas;
 import evaluaciones.Evaluacion;
 import evaluaciones.ExamenSustitutorio;
 import excepciones.PesoInvalidoException;
-import java.util.ArrayList;
 
-public class Curso implements Calculable {
+public class Curso implements Calculable, Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     // Constante acordada por el grupo (cámbiala si deciden otra)
     public static final double NOTA_MINIMA_APROBATORIA = 10.5;
     private static final double PESO_TOTAL = 100.0;
@@ -19,7 +23,7 @@ public class Curso implements Calculable {
     private int creditos;
     private double metaPromedio;
     private ArrayList<Evaluacion> evaluaciones; // composición
-    private EstrategiaPromedio estrategia;      // patrón Strategy
+    private EstrategiaPromedio estrategia; // patrón Strategy
 
     public Curso(String codigo, String nombre, int creditos, double metaPromedio) {
         if (codigo == null || codigo.trim().isEmpty()) {
@@ -41,6 +45,7 @@ public class Curso implements Calculable {
         this.evaluaciones = new ArrayList<>();
         this.estrategia = new PromedioPonderado(); // por defecto ponderado
     }
+
     public String getCodigo() { return codigo; }
     public String getNombre() { return nombre; }
     public int getCreditos() { return creditos; }
@@ -62,6 +67,7 @@ public class Curso implements Calculable {
         }
         this.estrategia = estrategia;
     }
+
     // Rechaza la evaluación si el peso es inválido o si el total pasaría de 100%
     public void agregarEvaluacion(Evaluacion evaluacion) throws PesoInvalidoException {
         if (evaluacion == null) {
@@ -77,10 +83,11 @@ public class Curso implements Calculable {
         }
         if (getPesoTotal() + evaluacion.getPeso() > PESO_TOTAL + TOLERANCIA) {
             throw new PesoInvalidoException("Los pesos superan el 100%. Peso actual: "
-                + getPesoTotal() + "%, intentas agregar: " + evaluacion.getPeso() + "%.");
+                    + getPesoTotal() + "%, intentas agregar: " + evaluacion.getPeso() + "%.");
         }
         evaluaciones.add(evaluacion);
     }
+
     // Devuelve el sustitutorio del curso o null si todavía no se creó
     public ExamenSustitutorio getSustitutorio() {
         for (Evaluacion e : evaluaciones) {
@@ -109,13 +116,15 @@ public class Curso implements Calculable {
         }
         return total;
     }
+
     // Úsalo cuando el curso ya esté completo (ej. antes de guardar)
     public void verificarPesos() throws PesoInvalidoException {
         if (Math.abs(getPesoTotal() - PESO_TOTAL) > TOLERANCIA) {
             throw new PesoInvalidoException(
-                "Los pesos del curso " + codigo + " suman " + getPesoTotal() + "% y deben sumar 100%.");
+                    "Los pesos del curso " + codigo + " suman " + getPesoTotal() + "% y deben sumar 100%.");
         }
     }
+
     // True si al menos una evaluación ya fue rendida
     public boolean tieneNotas() {
         for (Evaluacion e : evaluaciones) {
@@ -125,15 +134,18 @@ public class Curso implements Calculable {
         }
         return false;
     }
+
     // No calcula nada: delega en la estrategia
     @Override
     public double calcularPromedio() {
         return estrategia.calcular(evaluaciones);
     }
+
     public boolean estaAprobado() {
         return calcularPromedio() >= NOTA_MINIMA_APROBATORIA;
     }
-    // Delega el cálculo en el simulador (Estudiante 2)
+
+    // Delega el cálculo en el simulador
     public double notaNecesaria() {
         return new SimuladorNotas().notaNecesaria(this, metaPromedio);
     }

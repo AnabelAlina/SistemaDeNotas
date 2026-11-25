@@ -9,12 +9,13 @@ import javax.swing.SwingUtilities;
 import exportacion.Exportable;
 import exportacion.ExportadorCSV;
 import gui.VentanaPrincipal;
+import persistencia.Bitacora;
 import persistencia.Repositorio;
 import persistencia.RepositorioArchivo;
 
 /**
  * Punto de entrada de la aplicación gráfica (Swing).
- * Carga los datos persistidos y abre VentanaPrincipal.
+ * Carga los datos persistidos, activa la bitácora y abre VentanaPrincipal.
  */
 public class Main {
 
@@ -22,6 +23,7 @@ public class Main {
         Repositorio repositorio = new RepositorioArchivo("datos/notas.txt");
         Exportable exportador = new ExportadorCSV();
         GestorNotas gestor = new GestorNotas(repositorio);
+        gestor.setBitacora(new Bitacora("datos/bitacora.txt"));
 
         try {
             gestor.cargar();

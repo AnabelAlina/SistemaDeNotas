@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 import app.GestorNotas;
@@ -16,13 +17,14 @@ import evaluaciones.TrabajoContinua;
 import modelo.Ciclo;
 import modelo.Curso;
 import modelo.Estudiante;
+import persistencia.Bitacora;
 import persistencia.RepositorioArchivo;
+import persistencia.RepositorioObjetos;
 import plan.PlanEstudios;
 import plan.PlanEstudios.CursoPlan;
 
 /**
- * Pruebas de persistencia (guardar y volver a cargar el modelo UNSA)
- * y validación de unicidad de DNI y CUI en GestorNotas.
+ * Pruebas de persistencia (texto y objetos), bitácora y validaciones de GestorNotas.
  */
 public class PruebaGuardado {
 
@@ -57,12 +59,20 @@ public class PruebaGuardado {
         }
     }
 
-    private static String leerContenido(String ruta) throws Exception {
-        StringBuilder sb = new StringBuilder();
+    private static ArrayList<String> leerLineas(String ruta) throws Exception {
+        ArrayList<String> lineas = new ArrayList<>();
         try (Scanner sc = new Scanner(new FileReader(ruta, StandardCharsets.UTF_8))) {
             while (sc.hasNextLine()) {
-                sb.append(sc.nextLine()).append("\n");
+                lineas.add(sc.nextLine());
             }
+        }
+        return lineas;
+    }
+
+    private static String leerContenido(String ruta) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        for (String l : leerLineas(ruta)) {
+            sb.append(l).append("\n");
         }
         return sb.toString();
     }
@@ -73,12 +83,18 @@ public class PruebaGuardado {
         String rutaDaniada = "datos/prueba_daniada_temp.txt";
         String rutaRespaldo = "datos/prueba_respaldo_temp.txt";
         String rutaRespaldoBak = rutaRespaldo + ".bak";
+        String rutaObjetos = "datos/prueba_objetos_temp.dat";
+        String rutaObjetosBak = rutaObjetos + ".bak";
+        String rutaBitacora = "datos/prueba_bitacora_temp.txt";
 
         borrarSiExiste(rutaPrueba);
         borrarSiExiste(rutaBak);
         borrarSiExiste(rutaDaniada);
         borrarSiExiste(rutaRespaldo);
         borrarSiExiste(rutaRespaldoBak);
+        borrarSiExiste(rutaObjetos);
+        borrarSiExiste(rutaObjetosBak);
+        borrarSiExiste(rutaBitacora);
 
         try {
             RepositorioArchivo repo = new RepositorioArchivo(rutaPrueba);
@@ -137,7 +153,7 @@ public class PruebaGuardado {
             double promedioAntes = est1.calcularPromedio();
             double promedioDsooAntes = dsoo.calcularPromedio();
 
-            // 3. Guardar y volver a cargar en un GestorNotas nuevo (incluye apellido con ';')
+            // 3. Guardar y volver a cargar en texto
             verificar("guardarTodo devuelve true", true, gestor.guardarTodo());
 
             GestorNotas gestorRecargado = new GestorNotas(new RepositorioArchivo(rutaPrueba));
@@ -161,7 +177,7 @@ public class PruebaGuardado {
             verificar("promedio acumulado del estudiante igual tras cargar",
                     promedioAntes, cargado.calcularPromedio());
 
-            // 4. Archivo con una línea de CURSO dañada carga el resto y deja 1 advertencia
+            // 4. Archivo con línea dañada
             try (PrintWriter pw = new PrintWriter(new FileWriter(rutaDaniada, StandardCharsets.UTF_8))) {
                 pw.println("ESTUDIANTE;Ana;Torres;74445555;atorres@unsa.edu.pe;20265555;Ingeniería de Sistemas");
                 pw.println("CICLO;2026-A;2026");
@@ -176,7 +192,7 @@ public class PruebaGuardado {
             verificar("curso sano cargado tras ignorar el dañado", 1,
                     estSano.getCiclos().get(0).getCursos().size());
 
-            // 5. Respaldo .bak: primer guardado crea .bak y segundo guardado no lo cambia
+            // 5. Respaldo .bak en texto
             try (PrintWriter pw = new PrintWriter(new FileWriter(rutaRespaldo, StandardCharsets.UTF_8))) {
                 pw.println("CONTENIDO_INICIAL_DE_RESPALDO");
             }
@@ -191,7 +207,6 @@ public class PruebaGuardado {
             verificar("contenido .bak corresponde al archivo previo",
                     "CONTENIDO_INICIAL_DE_RESPALDO\n", contenidoBak1);
 
-            // Segundo guardado en la misma sesión no debe sobrescribir el .bak
             gestorRespaldo.agregarEstudiante(new Estudiante("Pedro", "Soto", "73332222",
                     "psoto@unsa.edu.pe", "20267777", "Ingeniería de Sistemas"));
             gestorRespaldo.guardar();
@@ -199,12 +214,38 @@ public class PruebaGuardado {
             verificar("segundo guardado conserva intacto el .bak original",
                     contenidoBak1, contenidoBak2);
 
+            // 6. RepositorioObjetos: guardar y cargar (.dat)
+            gestor.setRepositorio(new RepositorioObjetos(rutaObjetos));
+            gestor.guardar();
+
+            GestorNotas gestorObj = new GestorNotas(new RepositorioObjetos(rutaObjetos));
+            gestorObj.cargar();
+            Estudiante estObj = gestorObj.buscarEstudiante("20261234");
+            verificar("objetos: estudiante cargado existe", true, estObj != null);
+            Curso dsooObj = estObj.getCiclos().get(0).getCursos().get(0);
+            Continua c1Obj = (Continua) buscarEval(dsooObj, "C", 1);
+            verificar("objetos: trabajos de Continua 1 conservados", 2, c1Obj.getTrabajos().size());
+            verificar("objetos: sustitutorio conservado", true, dsooObj.getSustitutorio() != null);
+            verificar("objetos: nota sustitutorio conservada", 16.0, dsooObj.getSustitutorio().getNota());
+            verificar("objetos: meta del curso conservada", 15.0, dsooObj.getMetaPromedio());
+            verificar("objetos: promedio del curso igual", promedioDsooAntes, dsooObj.calcularPromedio());
+
+            // 7. Bitacora en modo añadir
+            Bitacora bitacora = new Bitacora(rutaBitacora);
+            verificar("bitacora: primer registro devuelve true", true, bitacora.registrar("Primera accion"));
+            verificar("bitacora: segundo registro devuelve true", true, bitacora.registrar("Segunda accion"));
+            ArrayList<String> lineasBit = leerLineas(rutaBitacora);
+            verificar("bitacora: conserva ambas líneas sin sobrescribir", 2, lineasBit.size());
+
         } finally {
             borrarSiExiste(rutaPrueba);
             borrarSiExiste(rutaBak);
             borrarSiExiste(rutaDaniada);
             borrarSiExiste(rutaRespaldo);
             borrarSiExiste(rutaRespaldoBak);
+            borrarSiExiste(rutaObjetos);
+            borrarSiExiste(rutaObjetosBak);
+            borrarSiExiste(rutaBitacora);
         }
 
         System.out.println();
