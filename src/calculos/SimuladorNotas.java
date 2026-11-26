@@ -1,5 +1,6 @@
 package calculos;
 
+import evaluaciones.Continua;
 import evaluaciones.Evaluacion;
 import evaluaciones.Examen;
 import evaluaciones.ExamenSustitutorio;
@@ -119,37 +120,74 @@ public class SimuladorNotas {
         return necesaria <= notaMasBaja ? 0 : necesaria;
     }
 
-    // Nota que se necesita, en promedio, en TODAS las evaluaciones pendientes para llegar a "meta":
-    //   (meta x pesoTotal - acumulado) / pesoRestante
-    // - Si da mayor que 20, es imposible llegar a la meta.
-    // - Si ya alcanzaste la meta, devuelve 0.
-    // - Si no queda nada pendiente, devuelve 0 (usa hayEvaluacionesPendientes() para distinguirlo).
-    public double notaNecesaria(Curso curso, double meta) {
-        // Notas que cuentan (ya con la regla del sustitutorio); el sustitutorio nunca es "pendiente"
-        LinkedHashMap<Evaluacion, Double> efectivas = NotasEfectivas.calcular(curso.getEvaluaciones());
-        double acumulado = 0;
-        double pesoRestante = 0;
-        double pesoTotal = 0;
+    // Peso (en %) del curso que todavia falta ganar, sin contar el sustitutorio:
+    //  - Examen sin rendir: su peso entero. Examen rendido: 0.
+    //  - Continua: peso x (100 - p) / 100, con p = suma de los % internos de sus trabajos ya calificados.
+    //    Una continua sin trabajos esta toda pendiente.
+    public double pesoPendiente(Curso curso) {
+        double pendiente = 0;
         for (Evaluacion e : curso.getEvaluaciones()) {
             if (NotasEfectivas.esOpcional(e)) {
                 continue;
             }
-            pesoTotal += e.getPeso();
-            if (efectivas.containsKey(e)) {
-                acumulado += efectivas.get(e) * e.getPeso();
-            } else {
-                pesoRestante += e.getPeso();
-            }
+            pendiente += e.getPeso() - pesoGanadoDe(e);
         }
-        if (pesoRestante == 0) {
+        return pendiente;
+    }
+
+    // Puntos que ya estan asegurados en la nota final: suma de (nota efectiva x peso ganado / 100).
+    // Usa NotasEfectivas, asi que ya cuenta el sustitutorio.
+    public double puntosGanados(Curso curso) {
+        LinkedHashMap<Evaluacion, Double> efectivas = NotasEfectivas.calcular(curso.getEvaluaciones());
+        double puntos = 0;
+        for (Evaluacion e : curso.getEvaluaciones()) {
+            if (NotasEfectivas.esOpcional(e) || !efectivas.containsKey(e)) {
+                continue;
+            }
+            puntos += efectivas.get(e) * pesoGanadoDe(e) / 100.0;
+        }
+        return puntos;
+    }
+
+    // Peso que una evaluacion ya aporto al curso (0 si no tiene nada calificado)
+    private double pesoGanadoDe(Evaluacion e) {
+        if (e instanceof Continua) {
+            double p = 0; // suma de % internos de los trabajos calificados
+            for (evaluaciones.TrabajoContinua t : ((Continua) e).getTrabajos()) {
+                if (t.isRendido()) {
+                    p += t.getPeso();
+                }
+            }
+            return e.getPeso() * p / 100.0;
+        }
+        return e.isRendida() ? e.getPeso() : 0;
+    }
+
+    // Nota que se necesita, en promedio, en TODO lo que falta para llegar a "meta":
+    //   (meta x 100 - suma de nota x peso ganado) / pesoPendiente
+    // - Si da mayor que 20, es imposible llegar a la meta.
+    // - Si ya alcanzaste la meta, devuelve 0.
+    // - Si no queda nada pendiente, devuelve 0 (usa hayEvaluacionesPendientes() para distinguirlo).
+    public double notaNecesaria(Curso curso, double meta) {
+        double pendiente = pesoPendiente(curso);
+        if (pendiente < 0.0001) {
             return 0;
         }
-        double necesaria = (meta * pesoTotal - acumulado) / pesoRestante;
+        double necesaria = (meta * 100 - puntosGanados(curso) * 100) / pendiente;
         return Math.max(0, necesaria);
     }
 
+    // True si falta rendir algo o si alguna continua todavia esta incompleta
     public boolean hayEvaluacionesPendientes(Curso curso) {
-        return buscarProximaPendiente(curso) != null;
+        if (buscarProximaPendiente(curso) != null) {
+            return true;
+        }
+        for (Evaluacion e : curso.getEvaluaciones()) {
+            if (e instanceof Continua && !((Continua) e).isCompleta()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // True si aun es matematicamente posible alcanzar la nota minima aprobatoria

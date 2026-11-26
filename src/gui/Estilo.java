@@ -11,6 +11,7 @@ public final class Estilo {
 
     // Estado del curso
     public static final Color COLOR_APROBADO = new Color(46, 125, 50);     // verde
+    public static final Color COLOR_VAS_APROBANDO = new Color(0, 150, 136); // turquesa
     public static final Color COLOR_EN_RIESGO = new Color(255, 160, 0);    // ámbar
     public static final Color COLOR_DESAPROBADO = new Color(198, 40, 40);  // rojo
 

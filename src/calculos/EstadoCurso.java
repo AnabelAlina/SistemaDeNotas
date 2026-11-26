@@ -1,9 +1,10 @@
 package calculos;
 
-// Ani (Estudiante 2) - Estado de un curso segun su promedio actual y lo que falta rendir.
-// El texto es lo que muestra la ventana; los colores (verde, ambar, rojo) estan en gui/Estilo.
+// Estado de un curso segun lo que ya ganaste y lo que falta rendir.
+// El texto es lo que muestra la ventana; los colores estan en gui/Estilo.
 public enum EstadoCurso {
     APROBADO("Aprobado"),
+    VAS_APROBANDO("Vas aprobando"),
     EN_RIESGO("En riesgo"),
     DESAPROBADO("Desaprobado");
 

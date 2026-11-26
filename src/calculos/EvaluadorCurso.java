@@ -1,7 +1,6 @@
 package calculos;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import evaluaciones.Evaluacion;
 import modelo.Ciclo;
 import modelo.Curso;
 import modelo.Estudiante;
@@ -18,11 +17,15 @@ public class EvaluadorCurso {
     private static final double LIMITE_2 = 14;
     private static final double LIMITE_3 = 17;
     private SimuladorNotas simulador = new SimuladorNotas();
-    // Estado del curso con las reglas del grupo:
-    //  - sin notas: no se calcula (devuelve null; la ventana dice "Todavia no hay notas")
-    //  - APROBADO: el promedio actual es 10.5 o mas
-    //  - DESAPROBADO: ya es matematicamente imposible llegar a 10.5, o el curso termino por debajo
-    //  - EN_RIESGO: promedio menor que 10.5 pero todavia es posible aprobar
+        // Margen para comparar decimales sin errores de redondeo
+    private static final double TOLERANCIA = 0.0001;
+    // Estado del curso. Con puntosGanados (lo ya asegurado), pesoPendiente (lo que falta) y
+    // puntosPosibles = puntosGanados + pesoPendiente x 20 / 100 (lo maximo que aun se puede llegar a tener):
+    //  - sin notas: null (la ventana dice "Todavia no hay notas")
+    //  - APROBADO: no queda nada pendiente y el promedio es 10.5 o mas, o los puntos ganados ya son 10.5 o mas
+    //  - DESAPROBADO: no queda nada pendiente y el promedio es menor que 10.5, o los puntos posibles son menos de 10.5
+    //  - VAS_APROBANDO: el promedio de lo rendido es 10.5 o mas, pero todavia no esta asegurado
+    //  - EN_RIESGO: en los demas casos
     public EstadoCurso estadoDe(Curso curso) {
         if (curso == null) {
             throw new IllegalArgumentException("El curso no puede ser nulo.");
@@ -30,12 +33,21 @@ public class EvaluadorCurso {
         if (!curso.tieneNotas()) {
             return null;
         }
-        if (curso.calcularPromedio() >= Curso.NOTA_MINIMA_APROBATORIA) {
+        double minimo = Curso.NOTA_MINIMA_APROBATORIA;
+        double promedio = curso.calcularPromedio();
+        double ganados = simulador.puntosGanados(curso);
+        double pendiente = simulador.pesoPendiente(curso);
+        double posibles = ganados + pendiente * 20 / 100.0;
+        boolean nadaPendiente = pendiente < TOLERANCIA;
+
+        if ((nadaPendiente && promedio >= minimo - TOLERANCIA) || ganados >= minimo - TOLERANCIA) {
             return EstadoCurso.APROBADO;
         }
-        // Promedio menor que 10.5: si no queda nada por rendir o ya es imposible, esta desaprobado
-        if (!simulador.hayEvaluacionesPendientes(curso) || !simulador.esPosibleAprobar(curso)) {
+        if (nadaPendiente || posibles < minimo - TOLERANCIA) {
             return EstadoCurso.DESAPROBADO;
+        }
+        if (promedio >= minimo - TOLERANCIA) {
+            return EstadoCurso.VAS_APROBANDO;
         }
         return EstadoCurso.EN_RIESGO;
     }
