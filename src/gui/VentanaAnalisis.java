@@ -1,26 +1,5 @@
 package gui;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.GridLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
-
 import app.GestorNotas;
 import calculos.EstadisticasNotas;
 import calculos.EstadoCurso;
@@ -32,6 +11,26 @@ import evaluaciones.Evaluacion;
 import excepciones.NotaInvalidaException;
 import exportacion.Exportable;
 import exportacion.ExportadorCSV;
+import exportacion.ExportadorHTML;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Map;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import modelo.Ciclo;
 import modelo.Curso;
 import modelo.Estudiante;
@@ -48,7 +47,8 @@ public class VentanaAnalisis extends JFrame {
     private SelectorCurso selector;
     private EvaluadorCurso evaluador;
     private SimuladorNotas simulador;
-    private Exportable exportador;
+    private Exportable exportador;      // CSV
+    private Exportable exportadorHtml;  // HTML
 
     private JLabel lblPromedioCurso;
     private JLabel lblPromedioCiclo;
@@ -63,12 +63,17 @@ public class VentanaAnalisis extends JFrame {
     private ArrayList<Evaluacion> pendientesSimulables;
 
     private JTextArea areaEstadisticas;
+    private JComboBox<String> comboFormato;
 
     public VentanaAnalisis(GestorNotas gestor) {
         this(gestor, new ExportadorCSV());
     }
 
     public VentanaAnalisis(GestorNotas gestor, Exportable exportador) {
+        this(gestor, exportador, new ExportadorHTML());
+    }
+
+    public VentanaAnalisis(GestorNotas gestor, Exportable exportador, Exportable exportadorHtml) {
         super("Análisis de notas");
         if (gestor == null) {
             throw new IllegalArgumentException("El gestor no puede ser nulo.");
@@ -79,7 +84,11 @@ public class VentanaAnalisis extends JFrame {
         this.gestor = gestor;
         this.evaluador = new EvaluadorCurso();
         this.simulador = new SimuladorNotas();
+        if (exportadorHtml == null) {
+            throw new IllegalArgumentException("El exportador HTML no puede ser nulo.");
+        }
         this.exportador = exportador;
+        this.exportadorHtml = exportadorHtml;
         this.pendientesSimulables = new ArrayList<>();
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -183,14 +192,18 @@ public class VentanaAnalisis extends JFrame {
         panel.setBackground(Estilo.COLOR_FONDO);
 
         Escucha escucha = new Escucha();
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnExportar = new JButton("Exportar CSV");
+                JButton btnActualizar = new JButton("Actualizar");
+        JButton btnExportar = new JButton("Exportar");
+        comboFormato = new JComboBox<>(new String[]{"CSV", "HTML"});
+        comboFormato.setFont(Estilo.FUENTE_NORMAL);
         btnActualizar.setActionCommand("Actualizar");
-        btnExportar.setActionCommand("Exportar CSV");
+        btnExportar.setActionCommand("Exportar");
         btnActualizar.addActionListener(escucha);
         btnExportar.addActionListener(escucha);
 
         panel.add(btnActualizar);
+        panel.add(new JLabel("Formato:"));
+        panel.add(comboFormato);
         panel.add(btnExportar);
         return panel;
     }
@@ -424,21 +437,24 @@ public class VentanaAnalisis extends JFrame {
         }
     }
 
-    private void exportarCSV() {
+    private void exportar() {
         Estudiante est = selector.getEstudiante();
         if (est == null) {
             JOptionPane.showMessageDialog(this, "No hay estudiante seleccionado.",
                     "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        String rutaDefecto = "datos/reporte_" + est.getCodigo() + ".csv";
-        String ruta = JOptionPane.showInputDialog(this, "Ruta del archivo CSV:", rutaDefecto);
+        boolean esHtml = "HTML".equals(comboFormato.getSelectedItem());
+        String extension = esHtml ? ".html" : ".csv";
+        String rutaDefecto = "datos/reporte_" + est.getCodigo() + extension;
+        String ruta = JOptionPane.showInputDialog(this, "Ruta del archivo " + (esHtml ? "HTML" : "CSV") + ":", rutaDefecto);
         if (ruta == null || ruta.trim().isEmpty()) {
             return;
         }
 
         try {
-            exportador.exportar(est, ruta.trim());
+            Exportable elegido = esHtml ? exportadorHtml : exportador;
+            elegido.exportar(est, ruta.trim());
             JOptionPane.showMessageDialog(this, "Reporte exportado en:\n" + ruta.trim(),
                     "Exportación exitosa", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException ex) {
@@ -446,7 +462,6 @@ public class VentanaAnalisis extends JFrame {
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
     // ---------- Listener de los botones ----------
 
     private class Escucha implements ActionListener {
@@ -458,8 +473,8 @@ public class VentanaAnalisis extends JFrame {
                     selector.recargar();
                 } else if (comando.equals("Simular")) {
                     ejecutarSimulacion();
-                } else if (comando.equals("Exportar CSV")) {
-                    exportarCSV();
+                } else if (comando.equals("Exportar")) {
+                    exportar();
                 }
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(VentanaAnalisis.this, ex.getMessage(), "Error",
