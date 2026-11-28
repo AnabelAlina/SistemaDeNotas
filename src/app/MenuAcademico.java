@@ -9,7 +9,6 @@ import modelo.Estudiante;
 import modelo.Persona;
 
 //Submenú académico: registro de estudiantes, ciclos y cursos.
-//Responsable: Estudiante 1 (Anabel Quispe)
 
 public class MenuAcademico {
 

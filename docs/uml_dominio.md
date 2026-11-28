@@ -27,10 +27,6 @@ classDiagram
         +buscarCiclo(String) Ciclo
         +getCicloActual() Ciclo
     }
-    class Docente {
-        -String especialidad
-        +agregarCurso(Curso)
-    }
     class Ciclo {
         -String nombre
         -int anio
@@ -61,6 +57,7 @@ classDiagram
         -LocalDate fecha
         -boolean rendida
         +setNota(double)
+        +setFecha(LocalDate)
         +getNotaPonderada() double
         +getTipo() String
     }
@@ -112,8 +109,10 @@ classDiagram
     class EstadoCurso {
         <<enumeration>>
         APROBADO
+        VAS_APROBANDO
         EN_RIESGO
         DESAPROBADO
+        +getTexto() String
     }
     class PlanEstudios {
         +getCursosPrimerAnioSegundoSemestre() ArrayList
@@ -125,20 +124,39 @@ classDiagram
         <<interface>>
         +guardar(ArrayList~Estudiante~)
         +cargar() ArrayList~Estudiante~
+        +getAdvertencias() ArrayList~String~
     }
-    class RepositorioArchivo
+    class RepositorioArchivo {
+        texto: PrintWriter y Scanner
+    }
+    class RepositorioObjetos {
+        objetos: ObjectOutputStream y ObjectInputStream
+    }
+    class Bitacora {
+        +registrar(String) boolean
+    }
     class Exportable {
         <<interface>>
         +exportar(Estudiante, String)
     }
     class ExportadorCSV
+    class ExportadorHTML
     class GestorNotas {
         -Estudiante actual
+        +setRepositorio(Repositorio)
+        +setBitacora(Bitacora)
+        +getAdvertenciasCarga() ArrayList~String~
         +agregarEstudiante(Estudiante)
         +asignarNota(Curso, Evaluacion, double)
         +asignarNotaTrabajo(TrabajoContinua, double)
         +guardar()
         +cargar()
+    }
+    class Main {
+        <<entrada gráfica>>
+    }
+    class MainConsola {
+        <<entrada consola>>
     }
     class VentanaPrincipal
     class VentanaAcademica
@@ -149,14 +167,12 @@ classDiagram
 
     %% Relaciones
     Persona <|-- Estudiante
-    Persona <|-- Docente
     Calculable <|.. Estudiante
     Calculable <|.. Ciclo
     Calculable <|.. Curso
     Estudiante "1" *-- "0..*" Ciclo : composición
     Ciclo "1" *-- "0..*" Curso : composición
     Curso "1" *-- "6..7" Evaluacion : composición
-    Docente "1" o-- "0..*" Curso : agregación
 
     Evaluacion <|-- Examen
     Evaluacion <|-- Continua
@@ -169,11 +185,18 @@ classDiagram
     Curso ..> PlanEstudios : crea desde
 
     Repositorio <|.. RepositorioArchivo
+    Repositorio <|.. RepositorioObjetos
     Exportable <|.. ExportadorCSV
+    Exportable <|.. ExportadorHTML
     GestorNotas o-- Repositorio
+    GestorNotas o-- Bitacora : opcional
     GestorNotas "1" o-- "0..*" Estudiante
 
+    Main ..> GestorNotas
+    Main ..> VentanaPrincipal
+    MainConsola ..> GestorNotas
     VentanaPrincipal ..> GestorNotas
+    VentanaPrincipal ..> Repositorio : cambia el formato
     VentanaPrincipal ..> Exportable
     VentanaPrincipal ..> VentanaAcademica
     VentanaPrincipal ..> VentanaNotas
@@ -181,5 +204,7 @@ classDiagram
     VentanaAcademica *-- SelectorCurso
     VentanaNotas *-- SelectorCurso
     VentanaAnalisis *-- SelectorCurso
+    VentanaAnalisis ..> Exportable : CSV y HTML
     VentanaAnalisis ..> EvaluadorCurso
     EvaluadorCurso ..> EstadoCurso
+```

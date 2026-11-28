@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-// Estudiante 2 - Ayelen Choquecota - Estadisticas de las notas: moda y frecuencias (HashMap), mediana y
+// Estadisticas de las notas: moda y frecuencias (HashMap), mediana y
 // maxima/minima (array ordenado), promedio, desviacion y tendencia.
 //
-// NOTA para Estudiante 3 (solo si hace falta) - como usarla en el menu:
+// Uso en una ventana o menu:
 //   EstadisticasNotas est = new EstadisticasNotas();
 //   est.calcularFrecuencias(curso.getEvaluaciones());   // SIEMPRE primero
 //   if (est.hayDatos()) { est.getModa(); est.getMediana(); est.getMaxima(); est.getMinima();
