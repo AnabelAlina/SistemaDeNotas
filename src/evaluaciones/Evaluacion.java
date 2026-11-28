@@ -36,6 +36,9 @@ public abstract class Evaluacion implements Serializable {
     public LocalDate getFecha() { return fecha; }
     public boolean isRendida() { return rendida; }
 
+    // Permite restaurar la fecha al cargar un archivo (puede ser null si no tiene fecha)
+    public void setFecha(LocalDate fecha) { this.fecha = fecha; }
+
     // Valida que la nota este entre 0 y 20 (lanza NotaInvalidaException)
     // y, si es valida, la guarda y marca la evaluacion como rendida.
     public void setNota(double nota) throws NotaInvalidaException {
