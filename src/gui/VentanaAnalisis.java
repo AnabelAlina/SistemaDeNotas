@@ -55,6 +55,7 @@ public class VentanaAnalisis extends JFrame {
     private JLabel lblPromedioAcumulado;
     private JLabel lblNotaNecesaria;
     private JLabel lblEstado;
+    private JLabel lblLeyenda;
 
     // Controles del simulador
     private JComboBox<String> comboEvalSimular;
@@ -139,6 +140,14 @@ public class VentanaAnalisis extends JFrame {
         lblEstado.setHorizontalAlignment(SwingConstants.CENTER);
         lblEstado.setFont(Estilo.FUENTE_TITULO);
 
+        // Leyenda pequeña con lo que significa cada estado
+        lblLeyenda = crearEtiqueta();
+        lblLeyenda.setFont(Estilo.FUENTE_NORMAL.deriveFont(11f));
+        lblLeyenda.setText("<html><b>Aprobado:</b> ya aseguraste 10.5 · "
+                + "<b>Vas aprobando:</b> tu promedio actual es 10.5 o más, pero falta rendir · "
+                + "<b>En riesgo:</b> tu promedio actual es menor que 10.5, pero aún puedes aprobar · "
+                + "<b>Desaprobado:</b> ya no alcanza</html>");
+
         // Fila de simulación
         JPanel panelSim = new JPanel(new GridLayout(1, 3, 5, 5));
         panelSim.setBackground(Estilo.COLOR_FONDO);
@@ -164,6 +173,7 @@ public class VentanaAnalisis extends JFrame {
         panel.add(lblPromedioAcumulado);
         panel.add(lblNotaNecesaria);
         panel.add(lblEstado);
+        panel.add(lblLeyenda);
         panel.add(panelSim);
         panel.add(lblResultadoSimulacion);
         return panel;
@@ -297,8 +307,13 @@ public class VentanaAnalisis extends JFrame {
             if (nec > 20) {
                 lblNotaNecesaria.setText("Meta (" + formato(curso.getMetaPromedio()) + "): inalcanzable (> 20)");
             } else {
-                lblNotaNecesaria.setText("Necesitas en pendientes para meta ("
-                        + formato(curso.getMetaPromedio()) + "): " + formato(nec));
+                String texto = "Necesitas en pendientes para meta ("
+                        + formato(curso.getMetaPromedio()) + "): " + formato(nec);
+                if (hayContinuaIncompleta(curso)) {
+                    // <html> hace que el texto largo baje de línea en vez de cortarse
+                    texto = "<html>" + texto + " (aprox.: faltan trabajos por calificar)</html>";
+                }
+                lblNotaNecesaria.setText(texto);
             }
             for (Evaluacion ev : curso.getEvaluaciones()) {
                 if (!ev.isRendida() && !NotasEfectivas.esOpcional(ev)) {
@@ -329,6 +344,16 @@ public class VentanaAnalisis extends JFrame {
             return Estilo.COLOR_EN_RIESGO;
         }
         return Estilo.COLOR_DESAPROBADO;
+    }
+
+    // True si alguna continua tiene trabajos por agregar o por calificar
+    private boolean hayContinuaIncompleta(Curso curso) {
+        for (Evaluacion ev : curso.getEvaluaciones()) {
+            if (ev instanceof Continua && !((Continua) ev).isCompleta()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // El promedio es parcial si falta rendir algo (sin contar el sustitutorio)

@@ -1,6 +1,7 @@
 package gui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -18,6 +19,8 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import app.GestorNotas;
+import calculos.EstadoCurso;
+import calculos.EvaluadorCurso;
 import evaluaciones.Continua;
 import evaluaciones.Evaluacion;
 import evaluaciones.Examen;
@@ -36,6 +39,7 @@ public class VentanaNotas extends JFrame {
 
     private GestorNotas gestor;
     private SelectorCurso selector;
+    private EvaluadorCurso evaluador;
 
     // Controles para Examen 1, 2 y 3
     private JLabel[] lblExamenInfo;
@@ -72,6 +76,7 @@ public class VentanaNotas extends JFrame {
             throw new IllegalArgumentException("El gestor no puede ser nulo.");
         }
         this.gestor = gestor;
+        this.evaluador = new EvaluadorCurso();
         this.continuasActuales = new ArrayList<>();
         this.trabajosActuales = new ArrayList<>();
         this.cargandoCombos = false;
@@ -326,6 +331,7 @@ public class VentanaNotas extends JFrame {
             txtSustiNota.setEnabled(false);
             btnSustiGuardar.setEnabled(false);
             lblPromedioCurso.setText("Promedio actual del curso: --");
+            lblPromedioCurso.setForeground(Estilo.COLOR_TEXTO);
             return;
         }
 
@@ -468,13 +474,30 @@ public class VentanaNotas extends JFrame {
         }
     }
 
+    // Promedio del curso y, debajo del mismo texto, su estado con el color de Estilo
     private void actualizarPromedio(Curso curso) {
-        if (!curso.tieneNotas()) {
+        EstadoCurso estado = evaluador.estadoDe(curso);
+        if (estado == null) {
             lblPromedioCurso.setText("Promedio actual del curso: sin notas");
-        } else {
-            lblPromedioCurso.setText(String.format("Promedio actual de %s: %.2f",
-                    curso.getNombre(), curso.calcularPromedio()));
+            lblPromedioCurso.setForeground(Estilo.COLOR_TEXTO);
+            return;
         }
+        lblPromedioCurso.setText(String.format("Promedio actual de %s: %.2f - %s",
+                curso.getNombre(), curso.calcularPromedio(), estado.getTexto()));
+        lblPromedioCurso.setForeground(colorDe(estado));
+    }
+
+    private Color colorDe(EstadoCurso estado) {
+        if (estado == EstadoCurso.APROBADO) {
+            return Estilo.COLOR_APROBADO;
+        }
+        if (estado == EstadoCurso.VAS_APROBANDO) {
+            return Estilo.COLOR_VAS_APROBANDO;
+        }
+        if (estado == EstadoCurso.EN_RIESGO) {
+            return Estilo.COLOR_EN_RIESGO;
+        }
+        return Estilo.COLOR_DESAPROBADO;
     }
 
     // ---------- Acciones de Exámenes y Sustitutorio ----------
@@ -518,6 +541,15 @@ public class VentanaNotas extends JFrame {
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this, "Escribe un número válido (ej. 15.0).",
                     "Dato inválido", JOptionPane.ERROR_MESSAGE);
+            txtSustiNota.requestFocus();
+            return;
+        }
+        // Validar ANTES de crear el sustitutorio: una nota inválida no debe dejar uno vacío en el curso
+        if (Double.isNaN(nota) || nota < Evaluacion.NOTA_MINIMA || nota > Evaluacion.NOTA_MAXIMA) {
+            JOptionPane.showMessageDialog(this,
+                    "La nota debe estar entre " + (int) Evaluacion.NOTA_MINIMA + " y "
+                            + (int) Evaluacion.NOTA_MAXIMA + ". Recibido: " + nota,
+                    "Nota inválida", JOptionPane.ERROR_MESSAGE);
             txtSustiNota.requestFocus();
             return;
         }

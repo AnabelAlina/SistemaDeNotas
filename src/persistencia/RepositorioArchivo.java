@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -257,6 +258,12 @@ public class RepositorioArchivo implements Repositorio {
                 break;
             default:
                 throw new IllegalArgumentException("Tipo de evaluación desconocido: " + tipo);
+        }
+
+        // La fecha se guarda como AAAA-MM-DD, o SIN_FECHA ("-") si no tiene
+        String fecha = p[4];
+        if (!fecha.equals(SIN_FECHA)) {
+            ev.setFecha(LocalDate.parse(fecha));
         }
 
         if (rendida && !(ev instanceof Continua)) {
