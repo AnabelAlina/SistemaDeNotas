@@ -12,7 +12,7 @@ import modelo.Curso;
 import plan.PlanEstudios;
 import plan.PlanEstudios.CursoPlan;
 
-// Estudiante 2 - Ayelen Choquecota - Pruebas del modelo UNSA: Examen, Continua con trabajos, sustitutorio
+// Pruebas del modelo UNSA: Examen, Continua con trabajos, sustitutorio
 // y catalogo de cursos. Ejecutar y revisar que todo diga OK.
 public class PruebaUNSA {
     private static int fallos = 0;

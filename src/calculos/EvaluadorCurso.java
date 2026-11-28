@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import modelo.Ciclo;
 import modelo.Curso;
 import modelo.Estudiante;
-// Anabel Quispe (Estudiante 2) - Evalua un curso: estado (aprobado, en riesgo, desaprobado), distribucion de notas
+// Evalua un curso: estado (aprobado, vas aprobando, en riesgo, desaprobado), distribucion de notas
 // por rangos y estadisticas de un ciclo o acumuladas. No imprime nada ni modifica el curso.
 //
 // Uso en una ventana:

@@ -10,10 +10,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import modelo.Curso;
 
-// Estudiante 2 - Ayelen Choquecota - Simulador: promedio si saco X (simularNota), nota necesaria para una meta
+// Simulador: promedio si saco X (simularNota), nota necesaria para una meta
 // (notaNecesaria) y si todavia es posible aprobar (esPosibleAprobar).
 //
-// NOTA para Estudiante 3 (solo si hace falta) - en el menu:
+// Uso en una ventana o menu:
 //  - simularNota(...) lanza NotaInvalidaException si la nota no esta entre 0 y 20: atrapala con try/catch.
 //  - Antes de mostrar la nota necesaria usa hayEvaluacionesPendientes(curso); si no hay pendientes, avisalo.
 //  - Si notaNecesaria(...) da mayor que 20, mostrar que es imposible llegar a esa meta.

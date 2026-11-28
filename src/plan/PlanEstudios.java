@@ -6,12 +6,12 @@ import evaluaciones.Examen;
 import excepciones.PesoInvalidoException;
 import modelo.Curso;
 
-// Estudiante 2 - Ayelen Choquecota - Catalogo de cursos predeterminados (Primer anio, Segundo semestre, UNSA)
+// Catalogo de cursos predeterminados (Primer anio, Segundo semestre, UNSA)
 // con sus creditos y los porcentajes de cada Examen y cada Continua segun el silabo, y la forma de
 // crear un Curso ya armado con sus 3 continuas y 3 examenes.
 // Los porcentajes son sobre la nota final del curso; cada curso suma 100.
 //
-// NOTA para Estudiante 1 y Estudiante 3 (solo si hace falta):
+// Uso:
 //   - Para el ciclo con los cursos predeterminados:
 //       for (CursoPlan p : PlanEstudios.getCursosPrimerAnioSegundoSemestre()) {
 //           ciclo.agregarCurso(PlanEstudios.crearCurso(p, meta));   // atrapar PesoInvalidoException

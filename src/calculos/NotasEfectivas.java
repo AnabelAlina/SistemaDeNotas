@@ -6,7 +6,7 @@ import evaluaciones.Evaluacion;
 import evaluaciones.Examen;
 import evaluaciones.ExamenSustitutorio;
 
-// Estudiante 2 - Ayelen Choquecota - Calcula la nota que realmente cuenta de cada evaluacion rendida,
+// Calcula la nota que realmente cuenta de cada evaluacion rendida,
 // aplicando la regla del sustitutorio UNSA:
 //   si hay sustitutorio rendido, reemplaza la nota mas baja entre el Examen 1 y el Examen 2
 //   (nunca el Examen 3), y solo si el sustitutorio la mejora. El sustitutorio no aparece en el resultado.

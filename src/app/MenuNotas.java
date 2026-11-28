@@ -12,7 +12,6 @@ import modelo.Estudiante;
 
 /**
  * Submenú de notas: registro de exámenes, trabajos de continua y sustitutorio.
- * Responsable: Estudiante 1 (Anabel Quispe).
  */
 public class MenuNotas {
 

@@ -12,7 +12,7 @@ import modelo.Estudiante;
 import modelo.Persona;
 import persistencia.RepositorioArchivo;
 
-// Estudiante 1 - Anabel Quispe - Pruebas del modelo: validaciones, plan de estudios en Ciclo,
+// Pruebas del modelo: validaciones, plan de estudios en Ciclo,
 // curso manual y sustitutorio con peso 0. Ejecutar y revisar que todo diga OK.
 public class PruebaModelo {
     private static int fallos = 0;
